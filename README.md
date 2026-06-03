@@ -2,6 +2,11 @@
 
 > Made by KP
 
+**▶ Live demo:** once GitHub Pages is enabled (Settings → Pages → Deploy from `main` / root), the app runs in any browser at
+`https://kingsleypai.github.io/nethelp-network-investigator/` — no install required.
+
+**For colleagues:** the whole tool is a single self-contained file. Open `demo/NetHelp.html` (or just have it sent to you) and double-click it — it runs offline in any browser.
+
 An AI-assisted, **rules-based** network diagnostics platform for Technical Support Engineers supporting VoIP, UCaaS and Contact Centre environments (built around 8x8 connectivity requirements).
 
 Upload diagnostics — traceroutes, MTR, ping tests, 8x8 utility tests, PingPlotter exports, firewall logs — and NetHelp answers the only four questions that matter:
