@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS · Network Investigator</title>
+<style>
+  /* ===== INDUSTRIAL NOC THEME ====================================== */
+  :root{
+    --bg:#0a0e14; --bg2:#0e141d; --panel:#121a24; --panel2:#16202d;
+    --edge:#1f2c3a; --edge2:#2a3a4d; --rivet:#33485e;
+    --txt:#cdd9e5; --dim:#7d909f; --faint:#54656f;
+    --green:#34d17a; --green2:#0f3d27; --amber:#ffb02e; --amber2:#3d2e07;
+    --red:#ff4d4d; --red2:#3d1010; --blue:#39b6ff; --blue2:#0c2c40;
+    --accent:#ffb02e; --grid:rgba(80,120,150,.06);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Roboto Mono',Menlo,Consolas,monospace;
+    --sans:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg);color:var(--txt);font-family:var(--sans);
+    font-size:13px;overflow:hidden;
+    background-image:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:28px 28px;
+  }
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-track{background:var(--bg2)}
+  ::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:2px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--rivet)}
+
+  /* ===== TOP BAR =================================================== */
+  .topbar{
+    height:46px;display:flex;align-items:center;gap:14px;padding:0 16px;
+    background:linear-gradient(180deg,#16202d,#0e141d);
+    border-bottom:2px solid var(--edge2);
+    box-shadow:0 2px 0 #000a,inset 0 1px 0 #ffffff08;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:3px}
+  .logo .mark{
+    width:24px;height:24px;border:2px solid var(--amber);border-radius:4px;
+    display:grid;place-items:center;color:var(--amber);font-size:13px;
+    box-shadow:0 0 10px #ffb02e55,inset 0 0 6px #ffb02e33;background:#1a130233;
+  }
+  .logo b{color:#fff}
+  .logo span{color:var(--amber)}
+  .sub{color:var(--faint);font-family:var(--mono);font-size:10px;letter-spacing:1px}
+  .topbar .spacer{flex:1}
+  .stat{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px}
+  .led{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .led.amber{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+
+  /* ===== LAYOUT GRID ============================================== */
+  .shell{
+    height:calc(100vh - 46px);display:grid;
+    grid-template-columns:210px 1fr 320px;
+    grid-template-rows:1fr 150px;
+    grid-template-areas:"nav center right" "nav console console";
+    gap:8px;padding:8px;
+  }
+  .panel{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--edge2);border-radius:6px;
+    box-shadow:inset 0 1px 0 #ffffff08,0 4px 14px #0006;position:relative;overflow:hidden;
+  }
+  .panel::before{ /* corner rivets */
+    content:"";position:absolute;inset:5px;border:1px solid var(--edge);
+    border-radius:4px;pointer-events:none;
+  }
+  .phead{
+    display:flex;align-items:center;gap:8px;padding:9px 12px;
+    border-bottom:1px solid var(--edge2);background:#0c131c;
+    font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--amber);
+    text-transform:uppercase;position:relative;z-index:2;
+  }
+  .phead .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber)}
+  .pbody{position:relative;z-index:2;height:calc(100% - 35px);overflow:auto;padding:10px}
+
+  /* ===== NAV ====================================================== */
+  #nav{grid-area:nav}
+  .navbtn{
+    display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+    padding:10px 11px;margin:0 0 6px;border:1px solid var(--edge2);border-radius:5px;
+    background:#0e1620;color:var(--dim);font-family:var(--mono);font-size:11px;
+    letter-spacing:1px;cursor:pointer;transition:.15s;
+  }
+  .navbtn:hover{border-color:var(--rivet);color:var(--txt);background:#13202d}
+  .navbtn.active{
+    color:#0a0e14;background:linear-gradient(180deg,#ffc24d,#ffb02e);
+    border-color:#ffd27a;box-shadow:0 0 12px #ffb02e55;font-weight:700;
+  }
+  .navbtn .ic{font-size:13px;width:16px;text-align:center}
+  .navsec{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:2px;margin:14px 4px 8px}
+
+  /* ===== CENTER =================================================== */
+  #center{grid-area:center}
+  .tabbar{display:flex;gap:0;border-bottom:1px solid var(--edge2);background:#0c131c}
+  .tab{padding:9px 16px;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--faint);
+    cursor:pointer;border-right:1px solid var(--edge);border-bottom:2px solid transparent}
+  .tab.active{color:var(--amber);border-bottom-color:var(--amber);background:#101a25}
+  .view{display:none}
+  .view.active{display:block}
+
+  .dropzone{
+    border:2px dashed var(--edge2);border-radius:7px;padding:22px;text-align:center;
+    color:var(--dim);transition:.15s;cursor:pointer;background:#0d141d;
+  }
+  .dropzone:hover,.dropzone.drag{border-color:var(--amber);color:var(--txt);background:#12202b}
+  .dropzone b{color:var(--amber);font-family:var(--mono);letter-spacing:1px}
+  .dropzone small{display:block;margin-top:6px;color:var(--faint);font-size:11px}
+
+  textarea{
+    width:100%;min-height:120px;background:#070b10;color:#bfe6cf;border:1px solid var(--edge2);
+    border-radius:5px;padding:10px;font-family:var(--mono);font-size:11.5px;resize:vertical;line-height:1.5;
+  }
+  textarea:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 1px #ffb02e44}
+
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .lbl{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+  select{
+    background:#0d141d;color:var(--txt);border:1px solid var(--edge2);border-radius:5px;
+    padding:7px 9px;font-family:var(--mono);font-size:11px;
+  }
+  select:focus{outline:none;border-color:var(--amber)}
+
+  .btn{
+    padding:8px 14px;border:1px solid var(--edge2);border-radius:5px;background:#13202d;color:var(--txt);
+    font-family:var(--mono);font-size:11px;letter-spacing:1px;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{border-color:var(--rivet);background:#18293a}
+  .btn.primary{
+    background:linear-gradient(180deg,#ffc24d,#ffb02e);color:#0a0e14;border-color:#ffd27a;font-weight:700;
+    box-shadow:0 0 14px #ffb02e44;
+  }
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--dim)}
+  .btn.sm{padding:5px 9px;font-size:10px}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:20px;border:1px solid var(--edge2);
+    background:#0e1620;font-family:var(--mono);font-size:10px;color:var(--dim);cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--amber);color:var(--txt)}
+  .filelist{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+  .fileitem{display:flex;align-items:center;gap:8px;padding:6px 9px;background:#0e1620;border:1px solid var(--edge);border-radius:5px;font-family:var(--mono);font-size:11px}
+  .fileitem .x{margin-left:auto;color:var(--red);cursor:pointer;padding:0 4px}
+  .fileitem .tag{font-size:9px;color:var(--blue);border:1px solid var(--blue2);background:#0a1c28;padding:1px 6px;border-radius:3px}
+
+  /* ===== RESULTS ================================================== */
+  .health-banner{
+    display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:7px;margin-bottom:12px;
+    border:1px solid;position:relative;overflow:hidden;
+  }
+  .health-banner .hicon{font-size:30px;line-height:1}
+  .health-banner h2{margin:0;font-size:18px;letter-spacing:1px}
+  .health-banner p{margin:3px 0 0;color:var(--txt);font-size:12.5px;opacity:.92}
+  .h-healthy{background:linear-gradient(90deg,var(--green2),#0a1f15);border-color:#1c6b43;color:var(--green)}
+  .h-degraded{background:linear-gradient(90deg,var(--amber2),#241d08);border-color:#7a5e13;color:var(--amber)}
+  .h-critical{background:linear-gradient(90deg,var(--red2),#260a0a);border-color:#7a1f1f;color:var(--red)}
+  .health-banner .scan{position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffff0a,transparent);
+    transform:translateX(-100%);animation:scan 3s linear infinite}
+  @keyframes scan{to{transform:translateX(100%)}}
+
+  .sec{margin:0 0 12px;border:1px solid var(--edge2);border-radius:6px;background:#0d141d;overflow:hidden}
+  .sec h3{margin:0;padding:8px 12px;font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--amber);
+    background:#0c131c;border-bottom:1px solid var(--edge2);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .sec .c{padding:12px}
+  .rootcause{font-size:14px;line-height:1.5;color:#fff}
+
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--edge);border-radius:5px;overflow:hidden}
+  .metric{background:#0b1118;padding:9px 11px}
+  .metric .k{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:1px;text-transform:uppercase}
+  .metric .v{font-size:14px;color:var(--txt);margin-top:2px;font-family:var(--mono)}
+  .metric .v.bad{color:var(--red)} .metric .v.warn{color:var(--amber)} .metric .v.ok{color:var(--green)}
+
+  ol.actions{margin:0;padding-left:20px} ol.actions li{margin:5px 0;line-height:1.45}
+  .persist{margin-top:8px;padding:8px 10px;border-left:3px solid var(--amber);background:#1a1408;font-size:12px;color:var(--amber)}
+
+  .fixrow{display:flex;align-items:center;gap:10px;margin:7px 0}
+  .fixrow .name{flex:1;font-size:12.5px}
+  .fixbar{width:90px;height:7px;background:#0b1118;border:1px solid var(--edge);border-radius:4px;overflow:hidden}
+  .fixbar i{display:block;height:100%;background:linear-gradient(90deg,#ffb02e,#34d17a)}
+  .fixrow .pct{font-family:var(--mono);font-size:11px;color:var(--dim);width:34px;text-align:right}
+
+  .confwrap{display:flex;align-items:center;gap:12px}
+  .confbar{flex:1;height:12px;background:#0b1118;border:1px solid var(--edge2);border-radius:6px;overflow:hidden}
+  .confbar i{display:block;height:100%;background:linear-gradient(90deg,#ff4d4d,#ffb02e,#34d17a)}
+  .confnum{font-family:var(--mono);font-size:20px;font-weight:700;color:#fff;min-width:54px}
+
+  .copygrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .copygrid .full{grid-column:1/3}
+  pre.out{white-space:pre-wrap;font-family:var(--mono);font-size:11px;color:#bfe6cf;background:#070b10;
+    border:1px solid var(--edge);border-radius:5px;padding:10px;margin:6px 0 0;max-height:120px;overflow:auto}
+
+  .escbox{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .esccheck{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;padding:6px 9px;background:#0b1118;border:1px solid var(--edge);border-radius:5px}
+  .esccheck .mk{width:16px;height:16px;border-radius:3px;display:grid;place-items:center;font-size:11px;font-weight:700}
+  .mk.yes{background:var(--green2);color:var(--green);border:1px solid #1c6b43}
+  .mk.no{background:var(--red2);color:var(--red);border:1px solid #7a1f1f}
+  .escverdict{margin-top:10px;padding:10px 14px;border-radius:6px;font-family:var(--mono);letter-spacing:2px;font-weight:700;text-align:center}
+  .escverdict.go{background:var(--green2);color:var(--green);border:1px solid #1c6b43}
+  .escverdict.nogo{background:var(--amber2);color:var(--amber);border:1px solid #7a5e13}
+
+  .empty{display:grid;place-items:center;height:100%;color:var(--faint);text-align:center;font-family:var(--mono);font-size:12px;letter-spacing:1px}
+  .empty .big{font-size:40px;margin-bottom:10px;opacity:.5}
+
+  /* ===== RIGHT SUMMARY ============================================ */
+  #right{grid-area:right}
+  .gauge{text-align:center;padding:8px 0 4px}
+  .ring{width:120px;height:120px;margin:0 auto}
+  .summline{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--edge);font-size:12px}
+  .summline .k{color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:1px}
+  .summline .v{color:var(--txt);font-weight:600;text-align:right}
+  .badge{padding:2px 9px;border-radius:20px;font-family:var(--mono);font-size:10px;letter-spacing:1px;font-weight:700}
+  .badge.healthy{background:var(--green2);color:var(--green)} .badge.degraded{background:var(--amber2);color:var(--amber)} .badge.critical{background:var(--red2);color:var(--red)}
+
+  /* ===== CONSOLE ================================================== */
+  #console{grid-area:console}
+  #consoleBody{font-family:var(--mono);font-size:11px;line-height:1.7;padding:8px 12px;height:calc(100% - 35px);overflow:auto}
+  .cl{display:flex;gap:10px}
+  .cl .t{color:var(--faint);min-width:62px}
+  .cl .m{color:var(--dim)}
+  .cl.ok .m{color:var(--green)} .cl.warn .m{color:var(--amber)} .cl.err .m{color:var(--red)} .cl.info .m{color:var(--blue)} .cl.head .m{color:var(--txt)}
+  .cur{display:inline-block;width:7px;height:13px;background:var(--green);animation:blink 1s steps(2) infinite;vertical-align:middle}
+  @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+
+  /* DB / KB tables */
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--edge)}
+  th{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--faint);text-transform:uppercase}
+  td .pill{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:3px}
+  .pill.g{background:var(--green2);color:var(--green)} .pill.b{background:var(--blue2);color:var(--blue)}
+  .kbcard{border:1px solid var(--edge2);border-radius:6px;padding:11px 13px;margin-bottom:9px;background:#0d141d}
+  .kbcard h4{margin:0 0 5px;color:var(--amber);font-size:12px;font-family:var(--mono);letter-spacing:1px}
+  .kbcard p{margin:0;color:var(--dim);font-size:12px;line-height:1.5}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#13202d;border:1px solid var(--amber);
+    color:var(--amber);padding:9px 18px;border-radius:6px;font-family:var(--mono);font-size:11px;letter-spacing:1px;
+    box-shadow:0 6px 20px #000a;z-index:99;opacity:0;transition:.25s}
+  .toast.show{opacity:1}
+  .caseitem{padding:9px 11px;border:1px solid var(--edge2);border-radius:6px;margin-bottom:7px;background:#0d141d;cursor:pointer}
+  .caseitem:hover{border-color:var(--rivet)}
+  .caseitem .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .caseitem .rc{font-size:11.5px;color:var(--dim);margin-top:4px}
+  /* grouped previous cases */
+  .group{border:1px solid var(--edge2);border-radius:7px;margin-bottom:12px;background:#0b1118;overflow:hidden}
+  .ghead{display:flex;align-items:center;gap:9px;padding:9px 12px;background:linear-gradient(180deg,#101a25,#0c131c);border-bottom:1px solid var(--edge2);flex-wrap:wrap}
+  .ghead .gname{color:#fff;font-size:13px;letter-spacing:.5px}
+  .gcount{font-family:var(--mono);font-size:9px;color:var(--dim);border:1px solid var(--edge2);padding:2px 7px;border-radius:20px;letter-spacing:1px}
+  .gtypes{margin-left:auto;display:flex;gap:5px;flex-wrap:wrap}
+  .etype{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--blue);border:1px solid var(--blue2);background:#0a1c28;padding:2px 7px;border-radius:3px}
+  .etype.sm{color:var(--dim);border-color:var(--edge);background:#0d141d}
+  .recur{font-family:var(--mono);font-size:10px;color:var(--amber);background:#1a1408;padding:6px 12px;border-bottom:1px solid var(--edge)}
+  .group .caseitem{margin:8px 10px;border-radius:5px}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo"><span class="mark">◈</span><span>NEXUS</span> <b>NETWORK INVESTIGATOR</b></div>
+    <div class="sub">VoIP · UCaaS · CONTACT CENTRE DIAGNOSTICS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="led" id="sysLed"></span> ENGINE ONLINE</div>
+    <div class="stat" id="clock">--:--:--</div>
+  </div>
+
+  <div class="shell">
+    <!-- NAV -->
+    <div class="panel" id="nav">
+      <div class="phead"><span class="dot"></span>CONTROL</div>
+      <div class="pbody">
+        <div class="navsec">OPERATIONS</div>
+        <button class="navbtn active" data-nav="investigate"><span class="ic">⊕</span>NEW INVESTIGATION</button>
+        <button class="navbtn" data-nav="cases"><span class="ic">≡</span>PREVIOUS CASES</button>
+        <div class="navsec">INTELLIGENCE</div>
+        <button class="navbtn" data-nav="datacentres"><span class="ic">⌖</span>DATACENTRE DB</button>
+        <button class="navbtn" data-nav="kb"><span class="ic">✦</span>KNOWLEDGE BASE</button>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div class="panel" id="center">
+      <div class="phead"><span class="dot"></span><span id="centerTitle">ANALYSIS WORKSPACE</span></div>
+      <div class="pbody" id="centerBody">
+
+        <!-- INVESTIGATE VIEW -->
+        <div class="page" data-page="investigate">
+          <div class="tabbar">
+            <div class="tab active" data-tab="input">◰ EVIDENCE INTAKE</div>
+            <div class="tab" data-tab="results">◳ INVESTIGATION RESULTS</div>
+          </div>
+
+          <div class="view active" data-view="input" style="padding:12px">
+            <div class="lbl" style="margin-bottom:6px">1 · Site / Customer ID (so you can pinpoint whose test it is)</div>
+            <div class="row" style="margin-bottom:14px">
+              <input id="siteInput" type="text" placeholder="e.g. Acme Corp · London  (blank = auto-detect from diagnostics)"
+                style="flex:1;min-width:240px;background:#0d141d;color:var(--txt);border:1px solid var(--edge2);border-radius:5px;padding:7px 9px;font-family:var(--mono);font-size:11px">
+            </div>
+
+            <div class="lbl" style="margin-bottom:6px">2 · Region (auto-detected, override if VPN/SD-WAN/Citrix)</div>
+            <div class="row" style="margin-bottom:14px">
+              <select id="regionSel"><option value="">⊙ Auto-detect</option></select>
+              <span class="lbl" id="regionNote" style="color:var(--blue)"></span>
+            </div>
+
+            <div class="lbl" style="margin-bottom:6px">3 · Upload diagnostics (txt · csv · json · log · mtr)</div>
+            <div class="dropzone" id="drop">
+              <b>⬆ DROP FILES OR CLICK TO UPLOAD</b>
+              <small>Traceroute · MTR · Ping · 8x8 Utility Test · Firewall logs · PingPlotter export</small>
+              <input type="file" id="fileInput" multiple hidden accept=".txt,.log,.csv,.json,.mtr,.out">
+            </div>
+            <div class="filelist" id="fileList"></div>
+
+            <div class="lbl" style="margin:14px 0 6px">4 · …or paste diagnostics</div>
+            <textarea id="pasteArea" placeholder="Paste traceroute / MTR / ping / 8x8 utility test output here…"></textarea>
+
+            <div class="lbl" style="margin:14px 0 6px">Load a sample case</div>
+            <div class="row" id="sampleChips"></div>
+
+            <div class="row" style="margin-top:18px">
+              <button class="btn primary" id="runBtn">▶ RUN INVESTIGATION</button>
+              <button class="btn ghost" id="clearBtn">CLEAR</button>
+            </div>
+          </div>
+
+          <div class="view" data-view="results">
+            <div id="results"><div class="empty"><div><div class="big">◳</div>NO INVESTIGATION RUN YET<br><small>Add evidence and press RUN INVESTIGATION</small></div></div></div>
+          </div>
+        </div>
+
+        <!-- CASES VIEW -->
+        <div class="page" data-page="cases" style="display:none;padding:12px">
+          <div id="caseList"><div class="empty"><div><div class="big">≡</div>NO CASES STORED THIS SESSION</div></div></div>
+        </div>
+
+        <!-- DATACENTRES VIEW -->
+        <div class="page" data-page="datacentres" style="display:none;padding:12px">
+          <div id="dcTable"></div>
+          <div class="sec" style="margin-top:14px"><h3>REQUIRED 8x8 PORTS</h3><div class="c"><div id="portTable"></div></div></div>
+        </div>
+
+        <!-- KB VIEW -->
+        <div class="page" data-page="kb" style="display:none;padding:12px" id="kbView"></div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="panel" id="right">
+      <div class="phead"><span class="dot"></span>ISSUE SUMMARY</div>
+      <div class="pbody" id="rightBody">
+        <div class="empty" style="font-size:11px"><div><div class="big">◈</div>AWAITING<br>ANALYSIS</div></div>
+      </div>
+    </div>
+
+    <!-- CONSOLE -->
+    <div class="panel" id="console">
+      <div class="phead"><span class="dot"></span>LIVE DIAGNOSTIC CONSOLE</div>
+      <div id="consoleBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+/* ============================================================================
+ * NEXUS Network Investigator — Rules-Based Analysis Engine
+ * Self-contained, deterministic, no external dependencies, no API key.
+ * Works in browser (global NEXUS) and Node (module.exports).
+ * ==========================================================================*/
+(function (root) {
+  "use strict";
+
+  /* ---------------------------------------------------------------------- *
+   * 1. DATACENTRE + GEO INTELLIGENCE DATABASE
+   * ---------------------------------------------------------------------- */
+  // 8x8 region -> datacentre + expected SBC/edge endpoints + media ports.
+  // (Representative values for a support-engineering demo.)
+  const DATACENTRES = {
+    "United Kingdom": { dc: "London (LON)", code: "GB", edge: ["lon.8x8.com"], cluster: "EMEA" },
+    "Ireland":        { dc: "London (LON)", code: "IE", edge: ["lon.8x8.com"], cluster: "EMEA" },
+    "France":         { dc: "Frankfurt (FRA)", code: "FR", edge: ["fra.8x8.com"], cluster: "EMEA" },
+    "Germany":        { dc: "Frankfurt (FRA)", code: "DE", edge: ["fra.8x8.com"], cluster: "EMEA" },
+    "Netherlands":    { dc: "Frankfurt (FRA)", code: "NL", edge: ["fra.8x8.com"], cluster: "EMEA" },
+    "Spain":          { dc: "Frankfurt (FRA)", code: "ES", edge: ["fra.8x8.com"], cluster: "EMEA" },
+    "Italy":          { dc: "Frankfurt (FRA)", code: "IT", edge: ["fra.8x8.com"], cluster: "EMEA" },
+    "United States":  { dc: "US East (IAD)", code: "US", edge: ["iad.8x8.com"], cluster: "NA" },
+    "Canada":         { dc: "US East (IAD)", code: "CA", edge: ["iad.8x8.com"], cluster: "NA" },
+    "Australia":      { dc: "Sydney (SYD)", code: "AU", edge: ["syd.8x8.com"], cluster: "APAC" },
+    "Singapore":      { dc: "Singapore (SIN)", code: "SG", edge: ["sin.8x8.com"], cluster: "APAC" },
+    "Japan":          { dc: "Tokyo (TYO)", code: "JP", edge: ["tyo.8x8.com"], cluster: "APAC" },
+    "APAC":           { dc: "Singapore (SIN)", code: "SG", edge: ["sin.8x8.com"], cluster: "APAC" },
+    "LATAM":          { dc: "US East (IAD)", code: "US", edge: ["iad.8x8.com"], cluster: "NA" }
+  };
+  const REGIONS = Object.keys(DATACENTRES);
+
+  // Country thresholds (ms) for round-trip latency by route class.
+  // Used to phrase findings region-aware, never just "latency is high".
+  const LATENCY_THRESHOLDS = {
+    domestic: 50,   // same country
+    europe:   80,   // intra-EMEA
+    transatlantic: 150, // EU<->US
+    intercontinental: 250
+  };
+
+  // Required 8x8 connectivity ports.
+  const REQUIRED_PORTS = [
+    { port: 5060, proto: "UDP/TCP", use: "SIP signalling" },
+    { port: 5061, proto: "TLS", use: "SIP secure signalling" },
+    { port: 443,  proto: "TCP", use: "HTTPS / provisioning" },
+    { port: "10000-30000", proto: "UDP", use: "RTP media" }
+  ];
+
+  // Regional ISP signatures (only surfaced when confidence > 80%).
+  const ISP_SIGNATURES = {
+    "United Kingdom": ["bt", "virgin", "virginmedia", "sky", "vodafone", "talktalk", "plusnet", "ee"],
+    "Germany": ["deutsche telekom", "telekom", "vodafone", "1&1", "o2"],
+    "France": ["orange", "sfr", "free", "bouygues"],
+    "United States": ["comcast", "verizon", "at&t", "att", "spectrum", "cox", "lumen", "centurylink"],
+    "Australia": ["telstra", "optus", "tpg", "aussie broadband"]
+  };
+
+  // Geo hints by IP prefix (coarse, demo-grade) and by city tokens in hostnames.
+  const HOSTNAME_GEO = [
+    { re: /\b(lon|ldn|thn|tele?house|london|uk|\.gb\.)\b/i, region: "United Kingdom" },
+    { re: /\b(dub|dublin|\.ie\.)\b/i, region: "Ireland" },
+    { re: /\b(fra|frankfurt|\.de\.)\b/i, region: "Germany" },
+    { re: /\b(par|paris|\.fr\.)\b/i, region: "France" },
+    { re: /\b(ams|amsterdam|\.nl\.)\b/i, region: "Netherlands" },
+    { re: /\b(mad|madrid|\.es\.)\b/i, region: "Spain" },
+    { re: /\b(mil|rome|milan|\.it\.)\b/i, region: "Italy" },
+    { re: /\b(iad|ash|nyc|lax|dfw|chi|atl|\.us\.)\b/i, region: "United States" },
+    { re: /\b(yyz|tor|toronto|\.ca\.)\b/i, region: "Canada" },
+    { re: /\b(syd|sydney|mel|\.au\.)\b/i, region: "Australia" },
+    { re: /\b(sin|singapore|\.sg\.)\b/i, region: "Singapore" },
+    { re: /\b(tyo|nrt|tokyo|\.jp\.)\b/i, region: "Japan" }
+  ];
+
+  /* ---------------------------------------------------------------------- *
+   * 2. UTILITIES
+   * ---------------------------------------------------------------------- */
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const round1 = (n) => Math.round(n * 10) / 10;
+  const isPrivateIp = (ip) =>
+    /^10\./.test(ip) || /^192\.168\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip) || /^127\./.test(ip) || /^169\.254\./.test(ip);
+
+  const IP_RE = /\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g;
+
+  function detectRegionFromText(text) {
+    for (const h of HOSTNAME_GEO) if (h.re.test(text)) return { region: h.region, confidence: 92 };
+    return null;
+  }
+
+  function detectIsp(text, region) {
+    const sigs = ISP_SIGNATURES[region] || [];
+    const lc = text.toLowerCase();
+    for (const s of sigs) if (lc.includes(s)) return s;
+    return null;
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * 3. PARSERS
+   * ---------------------------------------------------------------------- */
+
+  // --- Traceroute / MTR ---------------------------------------------------
+  // Returns { type, hops:[{hop,host,ip,loss,avg,best,worst}], publicIps:[] }
+  function parseTraceroute(text) {
+    const lines = text.split(/\r?\n/);
+    const hops = [];
+    const publicIps = new Set();
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+
+      // MTR-style:  " 3.|-- 10.0.0.1   0.0%  5  1.2 1.3 1.0 1.5 0.1"
+      let m = line.match(/^\s*(\d+)\.?\|?-+\s+(\S+)\s+([\d.]+)%\s+\d+\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      if (m) {
+        const host = m[2];
+        const ipm = host.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
+        const ip = ipm ? ipm[0] : null;
+        if (ip && !isPrivateIp(ip)) publicIps.add(ip);
+        hops.push({
+          hop: +m[1], host, ip,
+          loss: parseFloat(m[3]),
+          avg: parseFloat(m[5]),   // mtr col order: last avg best wrst
+          best: parseFloat(m[6]),
+          worst: parseFloat(m[7])
+        });
+        continue;
+      }
+
+      // MTR (loss% avg best wrst stdev) variant: "host loss% snt last avg best wrst stdev"
+      m = line.match(/^\s*(\d+)\.?\s*[|]?-*\s*(\S.*?)\s+([\d.]+)%\s+\d+\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      if (m) {
+        const host = m[2].trim();
+        const ipm = host.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
+        const ip = ipm ? ipm[0] : null;
+        if (ip && !isPrivateIp(ip)) publicIps.add(ip);
+        hops.push({ hop: +m[1], host, ip, loss: parseFloat(m[3]), avg: parseFloat(m[5]), best: parseFloat(m[6]), worst: parseFloat(m[7]) });
+        continue;
+      }
+
+      // Classic traceroute: "3  ae-1.r1.lon.example.net (62.x.x.x)  12.345 ms 11.2 ms 13.1 ms"
+      m = line.match(/^\s*(\d+)\s+(.+)$/);
+      if (m && /\d+(\.\d+)?\s*ms/i.test(line)) {
+        const hopNo = +m[1];
+        const rest = m[2];
+        const hostm = rest.match(/^([^\(\s]+)?\s*\(?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?\)?/);
+        let host = (hostm && hostm[1]) ? hostm[1] : "*";
+        let ip = (hostm && hostm[2]) ? hostm[2] : null;
+        if (host === "*" && ip) host = ip;
+        const times = [...rest.matchAll(/([\d.]+)\s*ms/gi)].map(x => parseFloat(x[1]));
+        const timeouts = (rest.match(/\*/g) || []).length;
+        const probes = times.length + timeouts;
+        const loss = probes ? round1((timeouts / probes) * 100) : (times.length ? 0 : 100);
+        const avg = times.length ? round1(times.reduce((a, b) => a + b, 0) / times.length) : null;
+        if (ip && !isPrivateIp(ip)) publicIps.add(ip);
+        hops.push({ hop: hopNo, host, ip, loss, avg, best: times.length ? Math.min(...times) : null, worst: times.length ? Math.max(...times) : null });
+        continue;
+      }
+
+      // Timed-out hop "3  * * *"
+      m = line.match(/^\s*(\d+)\s+\*\s+\*\s+\*/);
+      if (m) { hops.push({ hop: +m[1], host: "*", ip: null, loss: 100, avg: null, best: null, worst: null }); continue; }
+
+      // PingPlotter-style export / tabular trace:  "3  core.virginmedia.net  4.2%  34.0"
+      // (hop, host/ip, loss%, avg-ms) — no "ms" suffix.
+      if (/^(hop|#)\b/i.test(line) || /^target\s*:/i.test(line)) continue; // skip headers
+      m = line.match(/^\s*(\d+)\s+(\S+)\s+([\d.]+)\s*%\s+([\d.]+)\s*(?:ms)?\s*$/i);
+      if (m) {
+        const host = m[2];
+        const ipm = host.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
+        const ip = ipm ? ipm[0] : null;
+        if (ip && !isPrivateIp(ip)) publicIps.add(ip);
+        const avg = parseFloat(m[4]);
+        hops.push({ hop: +m[1], host, ip, loss: parseFloat(m[3]), avg, best: avg, worst: avg });
+      }
+    }
+
+    if (!hops.length) return null;
+    return { type: hops.some(h => h.worst != null) && /mtr|loss%/i.test(text) ? "mtr" : "traceroute",
+             hops, publicIps: [...publicIps] };
+  }
+
+  // --- Ping test ----------------------------------------------------------
+  function parsePing(text) {
+    if (!/ping|pinging|packets|round-trip|rtt/i.test(text)) return null;
+    let loss = null, avg = null, target = null;
+    let m = text.match(/(\d+(?:\.\d+)?)%\s*(?:packet\s*)?loss/i);
+    if (m) loss = parseFloat(m[1]);
+    m = text.match(/(?:rtt|round-trip).*?=\s*[\d.]+\/([\d.]+)\//i);          // linux
+    if (m) avg = parseFloat(m[1]);
+    if (avg == null) { m = text.match(/Average\s*=\s*(\d+)ms/i); if (m) avg = parseFloat(m[1]); } // windows
+    m = text.match(/ping(?:ing)?\s+(\S+)/i);
+    if (m) target = m[1].replace(/[:\[\]]/g, "");
+    if (loss == null && avg == null) return null;
+    return { type: "ping", target, loss: loss == null ? 0 : loss, avg };
+  }
+
+  // --- 8x8 Utility test (JSON or text) -----------------------------------
+  function parse8x8Utility(text) {
+    // Try JSON first.
+    let data = null;
+    try { data = JSON.parse(text); } catch (e) {}
+    const looksUtility = /8x8|utility test|sbc|reachability|media port|rtp|sip|jitter|mos/i.test(text);
+    if (!data && !looksUtility) return null;
+
+    const r = { type: "8x8-utility", dns: null, sbc: null, firewall: null, region: null,
+                jitter: null, mos: null, ports: {}, publicIp: null, raw: {} };
+
+    if (data && typeof data === "object") {
+      const g = (k) => data[k] ?? data[k?.toLowerCase?.()] ?? null;
+      r.dns = g("dns") ?? (data.tests && data.tests.dns) ?? null;
+      r.sbc = g("sbc") ?? g("reachability") ?? null;
+      r.region = g("region") ?? g("location") ?? null;
+      r.publicIp = g("publicIp") ?? g("public_ip") ?? g("wanIp") ?? null;
+      r.jitter = num(g("jitter"));
+      r.mos = num(g("mos"));
+      if (data.ports) r.ports = data.ports;
+      if (data.firewall) r.firewall = data.firewall;
+      r.raw = data;
+    }
+
+    // Text fallbacks / enrichment.
+    const grab = (re) => { const m = text.match(re); return m ? m[1].trim() : null; };
+    r.dns = r.dns ?? statusWord(grab(/DNS[:\s]+([A-Za-z]+)/i));
+    r.sbc = r.sbc ?? statusWord(grab(/(?:SBC|Reachability)[:\s]+([A-Za-z]+)/i));
+    r.region = r.region ?? grab(/(?:Region|Location|Country)[:\s]+([A-Za-z ]+)/i);
+    r.publicIp = r.publicIp ?? grab(/Public\s*IP[:\s]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/i);
+    if (r.jitter == null) r.jitter = num(grab(/Jitter[:\s]+([\d.]+)/i));
+    if (r.mos == null) r.mos = num(grab(/MOS[:\s]+([\d.]+)/i));
+
+    // Port checks: look for "5060 ... blocked/open", or "RTP ... blocked".
+    const portStatus = (label, re) => {
+      const m = text.match(re);
+      if (m) r.ports[label] = /open|allow|pass|ok|reachable/i.test(m[0]) ? "open" : "blocked";
+    };
+    portStatus("5060", /5060[^\n]*?(open|allow|pass|ok|reachable|block|closed|fail|filter)/i);
+    portStatus("5061", /5061[^\n]*?(open|allow|pass|ok|reachable|block|closed|fail|filter)/i);
+    portStatus("rtp",  /(rtp|media|10000[\- ]?30000)[^\n]*?(open|allow|pass|ok|reachable|block|closed|fail|filter)/i);
+    portStatus("443",  /443[^\n]*?(open|allow|pass|ok|reachable|block|closed|fail|filter)/i);
+
+    return r;
+  }
+  function num(v){ const n = parseFloat(v); return isNaN(n) ? null : n; }
+  function statusWord(v){ if(!v) return null; return /pass|ok|good|reachable|success/i.test(v) ? "PASS" : /warn/i.test(v) ? "WARNING" : /fail|block|error|bad/i.test(v) ? "FAIL" : v.toUpperCase(); }
+
+  /* ---------------------------------------------------------------------- *
+   * 4. MASTER PARSE — accepts arbitrary text, returns structured evidence
+   * ---------------------------------------------------------------------- */
+  function parseAll(inputs) {
+    // inputs: [{name, text}]
+    const evidence = { traceroutes: [], pings: [], utilities: [], publicIps: new Set(), sources: [] };
+    for (const inp of inputs) {
+      const text = inp.text || "";
+      evidence.sources.push(inp.name || "input");
+      const util = parse8x8Utility(text);
+      if (util) { evidence.utilities.push(util); if (util.publicIp) evidence.publicIps.add(util.publicIp); }
+      const tr = parseTraceroute(text);
+      if (tr) { evidence.traceroutes.push(tr); tr.publicIps.forEach(ip => evidence.publicIps.add(ip)); }
+      const pg = parsePing(text);
+      if (pg) evidence.pings.push(pg);
+      (text.match(IP_RE) || []).forEach(ip => { if (!isPrivateIp(ip)) evidence.publicIps.add(ip); });
+    }
+    evidence.publicIps = [...evidence.publicIps];
+    evidence.rawText = inputs.map(i => i.text).join("\n");
+    return evidence;
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * 5. ANALYSIS ENGINE
+   * ---------------------------------------------------------------------- */
+  function analyse(inputs, opts) {
+    opts = opts || {};
+    const ev = parseAll(inputs);
+
+    // ---- Geo / datacentre intelligence ----
+    const geo = resolveGeo(ev, opts.regionOverride);
+
+    // ---- Site / customer identifier ----
+    const site = detectSite(ev, opts.siteId);
+
+    // ---- Detection passes ----
+    const findings = [];
+    detectPacketLoss(ev, findings);
+    detectLatency(ev, geo, findings);
+    detectJitterMos(ev, findings);
+    detectFirewall(ev, findings);
+    detectDns(ev, geo, findings);
+    detectDatacentre(ev, geo, findings);
+
+    // ---- Root cause selection (highest severity, then earliest hop / confidence) ----
+    const sevRank = { critical: 3, degraded: 2, info: 1, healthy: 0 };
+    // When severity ties, prefer the more specific root-cause kind over a downstream symptom.
+    const kindRank = { "packet-loss": 6, "firewall": 5, "dns": 4, "datacentre": 4, "jitter": 3, "mos": 2, "latency": 1 };
+    findings.sort((a, b) =>
+      (sevRank[b.severity] - sevRank[a.severity]) ||
+      ((kindRank[b.kind] || 0) - (kindRank[a.kind] || 0)) ||
+      (b.confidence - a.confidence));
+
+    const top = findings[0];
+    let health = "healthy", rootCause = "Network appears healthy. No significant issues detected.";
+    let confidence = 96;
+
+    if (top && top.severity !== "healthy") {
+      health = top.severity === "critical" ? "critical" : "degraded";
+      rootCause = top.rootCause;
+      confidence = top.confidence;
+    }
+
+    // ---- Evidence summary ----
+    const evidenceLines = buildEvidence(ev, geo, findings);
+
+    // ---- Fix ranking ----
+    const fixes = rankFixes(findings, geo);
+
+    // ---- Customer + engineer + ticket outputs ----
+    const customerText = buildCustomerText(health, top, geo);
+    const engineerText = buildEngineerText(health, top, ev, geo);
+    const ticketNotes = buildTicketNotes(health, top, ev, geo, findings);
+    const escalationSummary = buildEscalationSummary(top, ev, geo, findings);
+
+    // ---- Escalation readiness ----
+    const escalation = escalationReadiness(ev, geo, findings);
+
+    // ---- ISP signature (only > 80%) ----
+    const isp = detectIspSignature(ev, geo, findings);
+
+    return {
+      health, rootCause, confidence,
+      geo, site: site.id, siteSource: site.source, findings,
+      evidence: evidenceLines,
+      fixes, isp,
+      affectedServices: deriveAffected(findings),
+      customerText, engineerText, ticketNotes, escalationSummary,
+      escalation,
+      detected: ev
+    };
+  }
+
+  /* ----- geo resolution ----- */
+  function resolveGeo(ev, override) {
+    // actual DC from traceroute destination hostnames (computed for both paths)
+    const lastHosts = ev.traceroutes.flatMap(t => t.hops.map(h => h.host || "")).join(" ");
+    const dcHit = detectRegionFromText(lastHosts);
+    const actualDc = dcHit ? DATACENTRES[dcHit.region].dc : null;
+
+    if (override && DATACENTRES[override]) {
+      return { region: override, expectedDc: DATACENTRES[override].dc,
+               actualDc, confidence: 100, method: "Agent Override", note: "Manual selection overrides automatic detection." };
+    }
+    // utility region first
+    let region = null, conf = 0, method = "Automatic Detection";
+    for (const u of ev.utilities) {
+      if (u.region) {
+        const norm = REGIONS.find(r => r.toLowerCase() === String(u.region).toLowerCase());
+        if (norm) { region = norm; conf = 97; }
+      }
+    }
+    if (!region) {
+      const hit = detectRegionFromText(ev.rawText);
+      if (hit) { region = hit.region; conf = hit.confidence; }
+    }
+    if (!region && ev.publicIps.length) { region = "United Kingdom"; conf = 55; method = "Automatic Detection (low confidence)"; }
+    if (!region) return { region: null, expectedDc: null, actualDc: null, confidence: 0, method: "Unresolved",
+                          note: "Region could not be determined automatically. Select a region to continue." };
+
+    const expectedDc = DATACENTRES[region].dc;
+    return { region, expectedDc, actualDc, confidence: conf, method,
+             note: method === "Agent Override" ? "Manual selection overrides automatic detection." : null };
+  }
+
+  /* ----- site / customer identifier ----- */
+  // Lets the engineer pinpoint whose test it is and lets cases group per site.
+  function detectSite(ev, override) {
+    if (override && String(override).trim()) return { id: String(override).trim(), source: "Agent label" };
+    // 1. structured fields in a parsed utility JSON
+    const keys = ["site", "siteId", "siteID", "site_name", "customer", "customerName",
+                  "customer_name", "company", "account", "accountName", "account_name", "name"];
+    for (const u of ev.utilities) {
+      const raw = u.raw || {};
+      for (const k of keys) if (raw[k] != null && String(raw[k]).trim()) return { id: String(raw[k]).trim(), source: "Utility field" };
+    }
+    // 2. labelled line in any diagnostics text
+    let m = ev.rawText.match(/(?:Site\s*ID|Site\s*Name|Site|Customer\s*Name|Customer|Company|Account\s*Name|Account)\s*[:=]\s*([^\n\r]{2,48})/i);
+    if (m) return { id: m[1].trim().replace(/\s{2,}/g, " "), source: "Diagnostics" };
+    // 3. source hostname (e.g. MTR "HOST: acme-pc")
+    m = ev.rawText.match(/HOST\s*:\s*([A-Za-z0-9][A-Za-z0-9._-]{1,40})/i);
+    if (m && !/^\d{1,3}(\.\d{1,3}){3}$/.test(m[1])) return { id: m[1].trim(), source: "Hostname" };
+    // 4. public IP fallback
+    if (ev.publicIps.length) return { id: ev.publicIps[0], source: "Public IP" };
+    return { id: null, source: null };
+  }
+
+  /* ----- packet loss ----- */
+  function detectPacketLoss(ev, out) {
+    let firstLossHop = null, maxLoss = 0, lossLocation = null, route = null;
+    for (const tr of ev.traceroutes) {
+      // sustained loss = loss that persists to subsequent hops (not single-hop ICMP de-prioritisation)
+      for (let i = 0; i < tr.hops.length; i++) {
+        const h = tr.hops[i];
+        if (h.loss == null) continue;
+        const next = tr.hops[i + 1];
+        const sustained = h.loss >= 2 && (!next || next.loss == null || next.loss >= Math.max(1, h.loss - 5));
+        if (h.loss > maxLoss) maxLoss = h.loss;
+        if (sustained && firstLossHop == null && h.loss >= 2) {
+          firstLossHop = h.hop;
+          route = tr;
+          lossLocation = h.hop <= 2 ? "lan" : (h.hop <= 3 ? "cpe/isp-edge" : "isp");
+        }
+      }
+    }
+    for (const pg of ev.pings) if (pg.loss > maxLoss) maxLoss = pg.loss;
+
+    if (maxLoss < 1) return; // healthy
+
+    const severity = maxLoss >= 3 ? "critical" : "degraded";
+    let where, rootCause, area;
+    if (lossLocation === "lan") {
+      where = "within the customer LAN"; area = "LAN";
+      rootCause = `Packet loss (${round1(maxLoss)}%) detected within the customer LAN at hop ${firstLossHop}.`;
+    } else if (lossLocation === "cpe/isp-edge") {
+      where = "at the CPE / ISP gateway"; area = "ISP-edge";
+      rootCause = `Packet loss (${round1(maxLoss)}%) detected between the customer LAN and the ISP gateway (hop ${firstLossHop}).`;
+    } else if (lossLocation === "isp") {
+      where = "in the ISP / backbone path"; area = "ISP";
+      rootCause = `Packet loss (${round1(maxLoss)}%) detected outside the customer LAN, beginning at hop ${firstLossHop} (ISP path).`;
+    } else {
+      where = "in the end-to-end path"; area = "ISP";
+      rootCause = `Packet loss (${round1(maxLoss)}%) detected in the end-to-end path.`;
+    }
+
+    out.push({
+      kind: "packet-loss", area, severity,
+      confidence: clamp(70 + Math.round(maxLoss * 4), 70, 95),
+      rootCause,
+      metrics: { "Packet Loss": round1(maxLoss) + "%", "Issue Starts": firstLossHop ? "Hop " + firstLossHop : "—", "Location": where },
+      where, firstLossHop
+    });
+  }
+
+  /* ----- latency (region-aware) ----- */
+  function detectLatency(ev, geo, out) {
+    let baseline = null, peak = null, peakHop = null;
+    for (const tr of ev.traceroutes) {
+      const finals = tr.hops.filter(h => h.avg != null);
+      if (!finals.length) continue;
+      const dest = finals[finals.length - 1];
+      if (peak == null || dest.avg > peak) { peak = dest.avg; }
+      const first = finals.find(h => h.hop >= 1);
+      if (first && (baseline == null)) baseline = first.avg;
+      for (const h of finals) {
+        // spike: a hop notably higher than the previous good hop
+        if (peakHop == null && h.worst != null && h.best != null && (h.worst - h.best) > 60) peakHop = h.hop;
+      }
+    }
+    for (const pg of ev.pings) if (pg.avg != null && (peak == null || pg.avg > peak)) peak = pg.avg;
+    if (peak == null) return;
+
+    // pick threshold by route class
+    const cls = routeClass(geo);
+    const thr = LATENCY_THRESHOLDS[cls.key];
+    if (peak <= thr) return;
+
+    const severity = peak > thr * 2.5 ? "critical" : "degraded";
+    out.push({
+      kind: "latency", area: "ISP", severity,
+      confidence: clamp(68 + Math.round((peak - thr) / thr * 20), 68, 90),
+      rootCause: `Latency is high for a ${cls.label} route. Expected <${thr}ms, observed ${round1(peak)}ms.`,
+      metrics: { "Latency": (baseline != null ? round1(baseline) + "ms → " : "") + round1(peak) + "ms",
+                 "Expected": "<" + thr + "ms (" + cls.label + ")",
+                 "Spike At": peakHop ? "Hop " + peakHop : "—" }
+    });
+  }
+
+  function routeClass(geo) {
+    if (!geo || !geo.region) return { key: "domestic", label: "domestic" };
+    const cluster = (DATACENTRES[geo.region] || {}).cluster;
+    if (cluster === "NA" && geo.region !== "United States") return { key: "domestic", label: geo.region + "-to-DC" };
+    // Same-country to its own regional DC is treated as domestic/europe.
+    if (geo.region === "United Kingdom") return { key: "domestic", label: "UK-to-UK" };
+    if (cluster === "EMEA") return { key: "europe", label: "intra-Europe" };
+    if (cluster === "APAC") return { key: "europe", label: "intra-APAC" };
+    return { key: "domestic", label: "domestic" };
+  }
+
+  /* ----- jitter / MOS ----- */
+  function detectJitterMos(ev, out) {
+    let jitter = null, mos = null;
+    for (const u of ev.utilities) { if (u.jitter != null) jitter = Math.max(jitter ?? 0, u.jitter); if (u.mos != null) mos = (mos == null ? u.mos : Math.min(mos, u.mos)); }
+    if (jitter != null && jitter > 30) {
+      const severity = jitter > 50 ? "critical" : "degraded";
+      out.push({ kind: "jitter", area: "ISP", severity,
+        confidence: clamp(70 + Math.round(jitter), 70, 92),
+        rootCause: `Excessive jitter (${round1(jitter)}ms) detected — voice quality will be affected. Target <30ms.`,
+        metrics: { "Jitter": round1(jitter) + "ms", "Target": "<30ms" } });
+    }
+    if (mos != null && mos < 3.6) {
+      out.push({ kind: "mos", area: "ISP", severity: mos < 3.0 ? "critical" : "degraded",
+        confidence: 85,
+        rootCause: `Degraded call quality — MOS ${round1(mos)} (good ≥4.0, acceptable ≥3.6).`,
+        metrics: { "MOS": round1(mos), "Target": "≥3.6" } });
+    }
+  }
+
+  /* ----- firewall ----- */
+  function detectFirewall(ev, out) {
+    const blocked = [];
+    for (const u of ev.utilities) {
+      for (const [k, v] of Object.entries(u.ports || {})) {
+        if (String(v).toLowerCase().match(/block|closed|fail|filter/)) blocked.push(k.toUpperCase());
+      }
+    }
+    if (!blocked.length) return;
+    const media = blocked.some(b => /RTP|MEDIA|10000/.test(b));
+    const sig = blocked.some(b => /506/.test(b));
+    out.push({ kind: "firewall", area: "Firewall",
+      severity: media || sig ? "critical" : "degraded",
+      confidence: 90,
+      rootCause: `Required 8x8 ${media ? "media (RTP)" : "signalling"} ports appear blocked or filtered: ${blocked.join(", ")}.`,
+      metrics: { "Blocked Ports": blocked.join(", "),
+                 "SIP 5060/5061": sig ? "BLOCKED" : "OK",
+                 "RTP 10000-30000": media ? "BLOCKED" : "OK" } });
+  }
+
+  /* ----- DNS ----- */
+  function detectDns(ev, geo, out) {
+    for (const u of ev.utilities) {
+      if (u.dns && /FAIL|WARNING|ERROR|SLOW/i.test(u.dns)) {
+        out.push({ kind: "dns", area: "DNS",
+          severity: /FAIL|ERROR/i.test(u.dns) ? "critical" : "degraded",
+          confidence: 82,
+          rootCause: `DNS resolution problem detected (${u.dns}). This can cause geo-routing to the wrong 8x8 datacentre.`,
+          metrics: { "DNS": u.dns } });
+      }
+    }
+  }
+
+  /* ----- datacentre mismatch ----- */
+  function detectDatacentre(ev, geo, out) {
+    if (!geo || !geo.region || !geo.actualDc) return;
+    if (geo.actualDc !== geo.expectedDc) {
+      out.push({ kind: "datacentre", area: "Routing", severity: "degraded",
+        confidence: 80,
+        rootCause: `Traffic is reaching ${geo.actualDc} but ${geo.region} should route to ${geo.expectedDc}. Likely DNS, VPN, SD-WAN or ISP routing.`,
+        metrics: { "Expected DC": geo.expectedDc, "Actual DC": geo.actualDc, "Status": "WARNING" } });
+    }
+  }
+
+  /* ----- SBC reachability finding from utility ----- */
+  // (folded into evidence + escalation)
+
+  /* ----- evidence builder ----- */
+  function buildEvidence(ev, geo, findings) {
+    const lines = {};
+    // merge metric maps from findings (top few)
+    for (const f of findings.slice(0, 4)) Object.assign(lines, f.metrics || {});
+    const affected = deriveAffected(findings);
+    if (affected.length) lines["Affected Services"] = affected.join(", ");
+    if (geo && geo.region) lines["Region"] = geo.region + (geo.confidence ? ` (${geo.confidence}%)` : "");
+    if (ev.publicIps.length) lines["Public IP"] = ev.publicIps[0];
+    if (!Object.keys(lines).length) lines["Status"] = "All measured metrics within normal range.";
+    return lines;
+  }
+
+  function deriveAffected(findings) {
+    const s = new Set();
+    for (const f of findings) {
+      if (["packet-loss", "jitter", "mos", "latency", "firewall"].includes(f.kind)) s.add("Voice Calls");
+      if (f.kind === "dns" || f.kind === "datacentre") s.add("Call Setup / Routing");
+      if (f.kind === "firewall") s.add("Media / RTP");
+    }
+    return [...s];
+  }
+
+  /* ----- fix ranking ----- */
+  function rankFixes(findings, geo) {
+    const top = findings[0];
+    if (!top || top.severity === "healthy") return [];
+    const fixes = [];
+    const add = (label, p) => fixes.push({ label, probability: p });
+    switch (top.area) {
+      case "ISP":
+        add("ISP Escalation", 87); add("Reboot Router / CPE", 41); add("Connect via Ethernet (bypass Wi-Fi)", 33);
+        break;
+      case "ISP-edge":
+        add("ISP Escalation", 78); add("Reboot Router / CPE", 55); add("Replace WAN cable / check line", 38);
+        break;
+      case "LAN":
+        add("Connect via Ethernet (bypass Wi-Fi)", 72); add("Check switch / cabling for the affected device", 58); add("Reboot local network equipment", 44);
+        break;
+      case "Firewall":
+        add("Open required 8x8 ports (SIP 5060/5061, RTP 10000-30000)", 91); add("Disable SIP ALG on the firewall", 64); add("Review firewall rules vs 8x8 requirements", 60);
+        break;
+      case "DNS":
+        add("Set DNS to a public resolver (e.g. 8.8.8.8 / 1.1.1.1)", 76); add("Flush DNS cache", 48); add("Verify DNS is not forced via VPN", 40);
+        break;
+      case "Routing":
+        add("Verify DNS and WAN routing policy", 70); add("Disable VPN / check SD-WAN breakout", 62); add("ISP Escalation", 45);
+        break;
+      default:
+        add("Reboot Router", 41);
+    }
+    return fixes;
+  }
+
+  /* ----- ISP signature ----- */
+  function detectIspSignature(ev, geo, findings) {
+    if (!geo || !geo.region) return null;
+    const isp = detectIsp(ev.rawText, geo.region);
+    const lossInIsp = findings.some(f => f.area === "ISP" || f.area === "ISP-edge");
+    if (isp && lossInIsp) {
+      const name = isp.charAt(0).toUpperCase() + isp.slice(1);
+      const conf = 87;
+      if (conf > 80) return { name, confidence: conf,
+        text: `Known Pattern Detected: ${name} congestion signature. Recommended action: escalate to ISP.` };
+    }
+    return null;
+  }
+
+  /* ----- customer / engineer / ticket text ----- */
+  function buildCustomerText(health, top, geo) {
+    if (!top || health === "healthy")
+      return "We ran a full diagnostic on your connection and everything looks healthy. We did not find any network issues affecting your service.";
+    if (top.area === "ISP" || top.area === "ISP-edge")
+      return "We identified packet loss occurring outside your local network. This appears to be related to your internet provider. We recommend contacting your ISP and providing the attached diagnostics.";
+    if (top.area === "Firewall")
+      return "We found that some of the network ports required for your phone service appear to be blocked by your firewall. We recommend your IT team allow the required 8x8 ports, then retest.";
+    if (top.area === "LAN")
+      return "We found a connectivity issue inside your local network. We recommend connecting the affected device by Ethernet, checking your switch and cabling, then retesting.";
+    if (top.area === "DNS" || top.area === "Routing")
+      return "We found your connection may be routing to the wrong region or using an unreliable DNS. We recommend checking your DNS settings and any VPN/SD-WAN policies, then retesting.";
+    return "We identified a network issue affecting your service. Please see the recommended steps and retest.";
+  }
+
+  function buildEngineerText(health, top, ev, geo) {
+    if (!top || health === "healthy") return "All measured metrics within tolerance. No reproducible issue. No action required.";
+    const bits = [top.rootCause];
+    if (top.firstLossHop) bits.push(top.firstLossHop <= 2 ? "Reproducible within LAN." : "Not reproducible within LAN — first sustained loss is beyond the CPE.");
+    if (geo && geo.region) bits.push(`Region ${geo.region}, expected DC ${geo.expectedDc}${geo.actualDc ? ", observed " + geo.actualDc : ""}.`);
+    return bits.join(" ");
+  }
+
+  function buildTicketNotes(health, top, ev, geo, findings) {
+    const notes = [];
+    if (geo && geo.region) notes.push(`Region: ${geo.region} → expected DC ${geo.expectedDc}.`);
+    if (!top || health === "healthy") { notes.push("Diagnostics reviewed: no significant issue detected."); return notes.slice(0,5); }
+    notes.push(`Health: ${health.toUpperCase()} — ${top.rootCause}`);
+    const m = top.metrics || {};
+    const ms = Object.entries(m).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(", ");
+    if (ms) notes.push("Evidence: " + ms + ".");
+    const aff = deriveAffected(findings);
+    if (aff.length) notes.push("Impact: " + aff.join(", ") + ".");
+    notes.push(`Next: ${top.area === "ISP" || top.area === "ISP-edge" ? "ISP escalation with attached trace" : top.area === "Firewall" ? "open required 8x8 ports, retest" : "apply recommended fix, retest"}.`);
+    return notes.slice(0, 5);
+  }
+
+  function buildEscalationSummary(top, ev, geo, findings) {
+    if (!top || top.severity === "healthy") return "No escalation required — network healthy.";
+    const lines = [];
+    lines.push(`ROOT CAUSE: ${top.rootCause}`);
+    lines.push(`REGION/DC: ${geo && geo.region ? geo.region + " → " + geo.expectedDc : "unresolved"}${geo && geo.actualDc ? " (observed " + geo.actualDc + ")" : ""}`);
+    const m = top.metrics || {};
+    lines.push("EVIDENCE: " + Object.entries(m).map(([k, v]) => `${k}=${v}`).join("; "));
+    lines.push(`EVIDENCE ON FILE: ${ev.utilities.length ? "8x8 utility test; " : ""}${ev.traceroutes.length ? "traceroute/MTR; " : ""}${ev.pings.length ? "ping; " : ""}`.trim());
+    lines.push(`CONFIDENCE: ${top.confidence}%`);
+    return lines.join("\n");
+  }
+
+  /* ----- escalation readiness ----- */
+  function escalationReadiness(ev, geo, findings) {
+    const checks = {
+      "Utility Test Present": ev.utilities.length > 0,
+      "Trace / PingPlotter Attached": ev.traceroutes.length > 0,
+      "Datacentre Identified": !!(geo && geo.region),
+      "Packet Loss Confirmed": findings.some(f => f.kind === "packet-loss"),
+      "Routing Analysis Completed": ev.traceroutes.length > 0,
+      "Root Cause Identified": findings.some(f => f.severity !== "healthy")
+    };
+    const passed = Object.values(checks).filter(Boolean).length;
+    const ready = passed >= 5 && checks["Root Cause Identified"];
+    return { ready, checks, passed, total: Object.keys(checks).length };
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * EXPORTS
+   * ---------------------------------------------------------------------- */
+  const NEXUS = { analyse, parseAll, parseTraceroute, parsePing, parse8x8Utility,
+                  REGIONS, DATACENTRES, REQUIRED_PORTS, LATENCY_THRESHOLDS };
+  if (typeof module !== "undefined" && module.exports) module.exports = NEXUS;
+  root.NEXUS = NEXUS;
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+
+  <script>
+  /* ================= UI CONTROLLER ================= */
+  (function(){
+    const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+    const files=[];        // {name,text}
+    const cases=[];        // stored investigations
+    let lastResult=null;
+
+    /* ---- clock ---- */
+    setInterval(()=>{const d=new Date();$('#clock').textContent=d.toTimeString().slice(0,8);},1000);
+
+    /* ---- console ---- */
+    const cbody=$('#consoleBody');
+    function log(msg,cls){
+      const d=new Date();
+      const row=document.createElement('div');row.className='cl '+(cls||'');
+      row.innerHTML=`<span class="t">${d.toTimeString().slice(0,8)}</span><span class="m">${msg}</span>`;
+      $$('.cur').forEach(c=>c.remove());
+      cbody.appendChild(row);
+      const cur=document.createElement('span');cur.className='cur';row.querySelector('.m').appendChild(document.createTextNode(' '));row.querySelector('.m').appendChild(cur);
+      cbody.scrollTop=cbody.scrollHeight;
+    }
+    log('NEXUS diagnostic core initialised.','head');
+    log('Rules-based engine loaded · '+NEXUS.REGIONS.length+' regions · '+NEXUS.REQUIRED_PORTS.length+' port rules.','info');
+    log('Standing by for evidence.','ok');
+
+    /* ---- region selector ---- */
+    const rsel=$('#regionSel');
+    NEXUS.REGIONS.forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;rsel.appendChild(o);});
+    rsel.onchange=()=>{
+      $('#regionNote').textContent=rsel.value?('▣ Override active — '+NEXUS.DATACENTRES[rsel.value].dc):'';
+      if(rsel.value)log('Agent override set: '+rsel.value+' → '+NEXUS.DATACENTRES[rsel.value].dc,'warn');
+    };
+
+    /* ---- nav ---- */
+    $$('.navbtn').forEach(b=>b.onclick=()=>{
+      $$('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+      const nav=b.dataset.nav;
+      $$('.page').forEach(p=>p.style.display=p.dataset.page===nav?'block':'none');
+      const titles={investigate:'ANALYSIS WORKSPACE',cases:'PREVIOUS CASES',datacentres:'DATACENTRE INTELLIGENCE',kb:'KNOWLEDGE BASE'};
+      $('#centerTitle').textContent=titles[nav];
+      if(nav==='datacentres')renderDC();
+      if(nav==='kb')renderKB();
+      if(nav==='cases')renderCases();
+    });
+
+    /* ---- tabs ---- */
+    $$('.tab').forEach(t=>t.onclick=()=>{
+      $$('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
+      $$('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===t.dataset.tab));
+    });
+    function gotoResults(){$$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='results'));
+      $$('.view').forEach(v=>v.classList.toggle('active',v.dataset.view==='results'));}
+
+    /* ---- file upload ---- */
+    const drop=$('#drop'),fi=$('#fileInput');
+    drop.onclick=()=>fi.click();
+    drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
+    drop.ondragleave=()=>drop.classList.remove('drag');
+    drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');handleFiles(e.dataTransfer.files);};
+    fi.onchange=()=>handleFiles(fi.files);
+    function handleFiles(fl){
+      [...fl].forEach(f=>{
+        const r=new FileReader();
+        r.onload=()=>{files.push({name:f.name,text:r.result});renderFiles();log('Ingested '+f.name+' ('+(f.size||r.result.length)+' bytes)','ok');};
+        r.readAsText(f);
+      });
+    }
+    function renderFiles(){
+      const fl=$('#fileList');fl.innerHTML='';
+      files.forEach((f,i)=>{
+        const d=document.createElement('div');d.className='fileitem';
+        d.innerHTML=`<span class="tag">${guessType(f.text,f.name)}</span><span>${f.name}</span><span class="x" data-i="${i}">✕</span>`;
+        fl.appendChild(d);
+      });
+      $$('.fileitem .x').forEach(x=>x.onclick=()=>{files.splice(+x.dataset.i,1);renderFiles();log('Removed evidence file.','warn');});
+    }
+    function guessType(t,name){
+      name=(name||'').toLowerCase();
+      if(name.includes('pingplotter')||/pingplotter/i.test(t))return'PINGPLOTTER';
+      if(/loss%\s+snt|wrst|stdev|\bmtr\b/i.test(t))return'MTR';
+      if(/^\s*target\s*:/im.test(t)&&/loss\s*%/i.test(t))return'PINGPLOTTER';
+      if(/utility test|sbc|reachability|"sbc"|"reachability"/i.test(t))return'8x8 UTIL';
+      if(/traceroute|\bhop\b|\bms\b/i.test(t))return'TRACE';
+      if(/ping|packets/i.test(t))return'PING';
+      try{const j=JSON.parse(t);if(j&&(j.region||j.dns||j.ports||j.sbc))return'8x8 UTIL';return'JSON';}catch(e){}
+      return'LOG';
+    }
+
+    /* ---- samples ---- */
+    const SAMPLES={
+      'Healthy UK':[
+        {name:'mtr.txt',text:`HOST: northwind-pc                Loss%   Snt   Last   Avg  Best  Wrst StDev
+  1.|-- 192.168.1.1                0.0%    10    0.8   0.9   0.7   1.2   0.1
+  2.|-- 10.20.0.1                  0.0%    10    7.1   7.4   6.9   8.0   0.3
+  3.|-- core1.lon.bt.net           0.0%    10    9.2   9.5   9.0  10.1   0.3
+  4.|-- ae0.edge.lon.8x8.com       0.0%    10   11.3  11.6  11.0  12.4   0.4`},
+        {name:'utility.json',text:JSON.stringify({customer:'Northwind Trading · Leeds',region:'United Kingdom',publicIp:'62.10.20.30',dns:'PASS',sbc:'PASS',jitter:8,mos:4.3,ports:{'5060':'open','5061':'open','rtp':'open','443':'open'}},null,2)}
+      ],
+      'ISP Packet Loss':[
+        {name:'pingplotter.txt',text:`Target: lon.8x8.com
+Hop  IP                       Loss%  Avg
+  1  192.168.1.1              0.0%   1.0
+  2  10.0.0.1                 0.0%   8.0
+  3  core.virginmedia.net     4.2%   34.0
+  4  peer.virginmedia.net     4.5%   120.0
+  5  edge.lon.8x8.com         4.6%   286.0`},
+        {name:'8x8util.txt',text:`8x8 Utility Test
+Customer: Acme Corp · London
+Region: United Kingdom
+Public IP: 81.2.3.4
+DNS: PASS
+SBC Reachability: PASS
+Jitter: 42
+MOS: 3.2`}
+      ],
+      'Firewall RTP Blocked':[
+        {name:'utility.json',text:JSON.stringify({customer:'Berlin Logistics GmbH',region:'Germany',publicIp:'91.10.10.10',dns:'PASS',sbc:'WARNING',ports:{'5060':'open','5061':'open','rtp':'blocked','443':'open'}},null,2)}
+      ],
+      'Wrong Datacentre (Acme)':[
+        {name:'trace.txt',text:`traceroute to fra.8x8.com
+ 1  192.168.0.1  1.1 ms 1.0 ms 1.2 ms
+ 2  10.0.0.1  6.0 ms 6.1 ms 6.2 ms
+ 3  core.bt.net  10.0 ms 10.1 ms 9.9 ms
+ 4  edge.fra.8x8.com  28.0 ms 28.1 ms 27.9 ms`},
+        {name:'util.txt',text:`8x8 Utility Test
+Customer: Acme Corp · London
+Region: United Kingdom
+DNS: WARNING
+Public IP: 62.5.5.5`}
+      ],
+      'LAN / Wi-Fi Loss':[
+        {name:'mtr.txt',text:`HOST: riverside-pc                Loss%   Snt   Last   Avg  Best  Wrst StDev
+  1.|-- 192.168.1.1                6.0%    10   12.0  45.0   2.0  180.0  60.1
+  2.|-- 10.0.0.1                   5.8%    10   10.0  10.5   9.0  12.0   1.0
+  3.|-- core.lon.bt.net            0.0%    10    9.0   9.2   8.9  10.0   0.3`},
+        {name:'u.txt',text:`Customer: Riverside Dental · Manchester
+Region: United Kingdom`}
+      ]
+    };
+    const chips=$('#sampleChips');
+    Object.keys(SAMPLES).forEach(k=>{
+      const c=document.createElement('span');c.className='chip';c.textContent='◆ '+k;
+      c.onclick=()=>{files.length=0;SAMPLES[k].forEach(f=>files.push({...f}));renderFiles();$('#pasteArea').value='';log('Loaded sample case: '+k,'info');};
+      chips.appendChild(c);
+    });
+
+    /* ---- clear ---- */
+    $('#clearBtn').onclick=()=>{files.length=0;$('#pasteArea').value='';renderFiles();rsel.value='';$('#siteInput').value='';$('#regionNote').textContent='';log('Workspace cleared.','warn');};
+
+    /* ---- RUN ---- */
+    $('#runBtn').onclick=()=>{
+      const inputs=[...files];
+      const paste=$('#pasteArea').value.trim();
+      if(paste)inputs.push({name:'pasted-input',text:paste});
+      if(!inputs.length){log('No evidence supplied — investigation aborted.','err');toast('Add evidence first');return;}
+      $('#sysLed').classList.add('amber');
+      runSequence(inputs);
+    };
+
+    function runSequence(inputs){
+      gotoResults();
+      $('#results').innerHTML='<div class="empty"><div><div class="big">◌</div>ANALYSING…</div></div>';
+      const steps=[
+        ['Reading '+inputs.length+' evidence source(s)…','info'],
+        ['Parsing traceroute / MTR / ping tables…',''],
+        ['Extracting public IP & geo-route…',''],
+        ['Resolving region & expected datacentre…','info'],
+        ['Running VoIP / DNS / routing / firewall detectors…',''],
+        ['Correlating evidence & ranking root cause…','info'],
+        ['Scoring confidence & escalation readiness…','']
+      ];
+      let i=0;
+      (function tick(){
+        if(i<steps.length){log(steps[i][0],steps[i][1]);i++;setTimeout(tick,170);}
+        else{
+          const res=NEXUS.analyse(inputs,{regionOverride:rsel.value||undefined,siteId:$('#siteInput').value||undefined});
+          lastResult=res;
+          log('ROOT CAUSE → '+res.rootCause,res.health==='critical'?'err':res.health==='degraded'?'warn':'ok');
+          log('Confidence '+res.confidence+'% · Escalation '+(res.escalation.ready?'READY':'NOT READY'),'head');
+          renderResults(res);renderSummary(res);storeCase(inputs,res);
+          $('#sysLed').classList.remove('amber');
+        }
+      })();
+    }
+
+    /* ---- render results ---- */
+    function vClass(k,v){
+      v=String(v);
+      if(/blocked|fail|critical|warning/i.test(v))return 'bad';
+      if(/ok|pass|open/i.test(v))return 'ok';
+      return '';
+    }
+    function renderResults(r){
+      const hMap={healthy:['🟢','h-healthy','HEALTHY'],degraded:['🟡','h-degraded','DEGRADED'],critical:['🔴','h-critical','CRITICAL']};
+      const h=hMap[r.health];
+      let html=`<div class="health-banner ${h[1]}"><span class="scan"></span><span class="hicon">${h[0]}</span>
+        <div><h2>NETWORK ${h[2]}</h2>
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;opacity:.85;margin:2px 0 4px">SITE: ${esc(r.site||'Unidentified')}${r.siteSource?` · ${r.siteSource}`:''}</div>
+        <p>${r.rootCause}</p></div></div>`;
+
+      // root cause
+      html+=`<div class="sec"><h3>◈ ROOT CAUSE</h3><div class="c"><div class="rootcause">${r.rootCause}</div></div></div>`;
+
+      // evidence metrics
+      const ek=Object.keys(r.evidence);
+      if(ek.length){
+        html+=`<div class="sec"><h3>▤ EVIDENCE</h3><div class="c"><div class="metrics">`;
+        ek.forEach(k=>{html+=`<div class="metric"><div class="k">${k}</div><div class="v ${vClass(k,r.evidence[k])}">${r.evidence[k]}</div></div>`;});
+        html+=`</div></div></div>`;
+      }
+
+      // geo / datacentre
+      if(r.geo&&r.geo.region){
+        const dcStatus=r.geo.actualDc&&r.geo.actualDc!==r.geo.expectedDc?'WARNING':'PASS';
+        html+=`<div class="sec"><h3>⌖ GEO / DATACENTRE</h3><div class="c"><div class="metrics">
+          <div class="metric"><div class="k">Detected Region</div><div class="v">${r.geo.region}</div></div>
+          <div class="metric"><div class="k">Method</div><div class="v" style="font-size:11px">${r.geo.method}</div></div>
+          <div class="metric"><div class="k">Expected DC</div><div class="v">${r.geo.expectedDc}</div></div>
+          <div class="metric"><div class="k">Actual DC</div><div class="v ${dcStatus==='WARNING'?'warn':'ok'}">${r.geo.actualDc||'—'}</div></div>
+        </div></div></div>`;
+      }
+
+      // ISP signature
+      if(r.isp){
+        html+=`<div class="sec"><h3>📡 ISP PATTERN</h3><div class="c"><div class="rootcause" style="font-size:13px;color:var(--amber)">${r.isp.text} <span style="color:var(--dim)">(confidence ${r.isp.confidence}%)</span></div></div></div>`;
+      }
+
+      // customer actions / fixes
+      if(r.fixes.length){
+        html+=`<div class="sec"><h3>★ MOST LIKELY FIXES (RANKED)</h3><div class="c">`;
+        r.fixes.forEach(f=>{html+=`<div class="fixrow"><span class="name">${f.label}</span><span class="fixbar"><i style="width:${f.probability}%"></i></span><span class="pct">${f.probability}%</span></div>`;});
+        html+=`</div></div>`;
+      }
+
+      // engineer vs customer
+      html+=`<div class="sec"><h3>⚒ ENGINEER FINDINGS</h3><div class="c"><div class="rootcause" style="font-size:12.5px">${r.engineerText}</div></div></div>`;
+
+      // confidence
+      html+=`<div class="sec"><h3>◎ CONFIDENCE SCORE</h3><div class="c"><div class="confwrap"><div class="confbar"><i style="width:${r.confidence}%"></i></div><div class="confnum">${r.confidence}%</div></div></div></div>`;
+
+      // escalation readiness
+      const e=r.escalation;
+      html+=`<div class="sec"><h3>⇪ ESCALATION READINESS</h3><div class="c"><div class="escbox">`;
+      Object.entries(e.checks).forEach(([k,v])=>{html+=`<div class="esccheck"><span class="mk ${v?'yes':'no'}">${v?'✓':'✕'}</span>${k}</div>`;});
+      html+=`</div><div class="escverdict ${e.ready?'go':'nogo'}">READY TO ESCALATE: ${e.ready?'YES':'NO'} &nbsp;·&nbsp; ${e.passed}/${e.total} CRITERIA MET</div></div></div>`;
+
+      // one-click copy
+      html+=`<div class="sec"><h3>⧉ ONE-CLICK COPY</h3><div class="c">
+        <div class="copygrid">
+          <button class="btn" data-copy="cust">⧉ Copy Customer Response</button>
+          <button class="btn" data-copy="ticket">⧉ Copy Ticket Notes</button>
+          <button class="btn full" data-copy="esc">⧉ Copy Escalation Summary</button>
+        </div>
+        <pre class="out" id="copyCust">${esc(r.customerText)}</pre>
+        <pre class="out" id="copyTicket">${esc(r.ticketNotes.map((n,i)=>'• '+n).join('\n'))}</pre>
+        <pre class="out" id="copyEsc">${esc(r.escalationSummary)}</pre>
+      </div></div>`;
+
+      $('#results').innerHTML=html;
+
+      const copyMap={cust:r.customerText,ticket:r.ticketNotes.map(n=>'• '+n).join('\n'),esc:r.escalationSummary};
+      $$('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(copyMap[b.dataset.copy]).then(()=>toast('Copied to clipboard')); });
+    }
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+    /* ---- right summary ---- */
+    function renderSummary(r){
+      const colors={healthy:'#34d17a',degraded:'#ffb02e',critical:'#ff4d4d'};
+      const c=colors[r.health];const pct=r.confidence;
+      const circ=2*Math.PI*52;const off=circ*(1-pct/100);
+      $('#rightBody').innerHTML=`
+        <div class="gauge">
+          <svg class="ring" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#1f2c3a" stroke-width="10"/>
+            <circle cx="60" cy="60" r="52" fill="none" stroke="${c}" stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="${circ}" stroke-dashoffset="${off}" transform="rotate(-90 60 60)" style="filter:drop-shadow(0 0 6px ${c})"/>
+            <text x="60" y="56" text-anchor="middle" fill="#fff" font-size="22" font-family="monospace" font-weight="700">${pct}%</text>
+            <text x="60" y="74" text-anchor="middle" fill="#7d909f" font-size="9" font-family="monospace" letter-spacing="2">CONFIDENCE</text>
+          </svg>
+        </div>
+        <div class="summline"><span class="k">SITE / CUSTOMER</span><span class="v">${r.site||'Unidentified'}</span></div>
+        <div class="summline"><span class="k">SEVERITY</span><span class="v"><span class="badge ${r.health}">${r.health.toUpperCase()}</span></span></div>
+        <div class="summline"><span class="k">REGION</span><span class="v">${r.geo.region||'—'}</span></div>
+        <div class="summline"><span class="k">DATACENTRE</span><span class="v">${r.geo.expectedDc||'—'}</span></div>
+        <div class="summline"><span class="k">AFFECTED</span><span class="v">${r.affectedServices.join(', ')||'None'}</span></div>
+        <div class="summline"><span class="k">ESCALATE</span><span class="v" style="color:${r.escalation.ready?'#34d17a':'#ffb02e'}">${r.escalation.ready?'READY':'NOT READY'}</span></div>
+        <div style="margin-top:12px" class="lbl">ROOT CAUSE</div>
+        <div style="font-size:12px;line-height:1.5;margin-top:4px;color:#fff">${r.rootCause}</div>
+        <div style="margin-top:14px" class="lbl">TOP FIX</div>
+        <div style="font-size:12px;margin-top:4px;color:var(--amber)">${r.fixes[0]?r.fixes[0].label+' ('+r.fixes[0].probability+'%)':'—'}</div>
+      `;
+    }
+
+    /* ---- cases ---- */
+    const SEV={healthy:0,degraded:1,critical:2};
+    function storeCase(inputs,r){
+      const types=[...new Set(inputs.map(i=>guessType(i.text,i.name)))];
+      cases.unshift({time:new Date().toTimeString().slice(0,8),health:r.health,rootCause:r.rootCause,
+        region:r.geo.region,conf:r.confidence,site:r.site||'Unidentified',siteSource:r.siteSource,types,inputs,res:r});
+    }
+    function renderCases(){
+      const el=$('#caseList');
+      if(!cases.length){el.innerHTML='<div class="empty"><div><div class="big">≡</div>NO CASES STORED THIS SESSION</div></div>';return;}
+      // group by site identifier (case-insensitive), preserving recency order
+      const groups=[],idx={};
+      cases.forEach((c,i)=>{
+        const key=String(c.site||'Unidentified').toLowerCase();
+        if(!(key in idx)){idx[key]=groups.length;groups.push({site:c.site||'Unidentified',items:[]});}
+        groups[idx[key]].items.push(Object.assign({_i:i},c));
+      });
+      el.innerHTML=groups.map(g=>{
+        const worst=g.items.reduce((a,b)=>SEV[b.health]>SEV[a]?b.health:a,'healthy');
+        const types=[...new Set(g.items.flatMap(it=>it.types))];
+        // recurring root-cause kinds within the site
+        const counts={};
+        g.items.forEach(it=>{const k=it.res.findings[0]&&it.res.findings[0].kind;if(k)counts[k]=(counts[k]||0)+1;});
+        const recur=Object.entries(counts).filter(([k,n])=>n>1);
+        const multi=g.items.length>1?`<span class="gcount">${g.items.length} tests</span>`:`<span class="gcount">1 test</span>`;
+        return `<div class="group">
+          <div class="ghead"><span class="badge ${worst}">${worst.toUpperCase()}</span>
+            <b class="gname">${g.site}</b>${multi}
+            <span class="gtypes">${types.map(t=>`<span class="etype">${t}</span>`).join('')}</span></div>
+          ${recur.length?`<div class="recur">⟳ Recurring at this site: ${recur.map(([k,n])=>k.replace('-',' ')+' ×'+n).join(', ')}</div>`:''}
+          ${g.items.map(it=>`<div class="caseitem" data-i="${it._i}">
+            <div class="top"><span><span class="badge ${it.health}">${it.health.toUpperCase()}</span>
+              <span class="lbl" style="margin-left:8px">${it.time} · ${it.conf}% · ${it.region||'—'}</span></span>
+              <span class="gtypes">${it.types.map(t=>`<span class="etype sm">${t}</span>`).join('')}</span></div>
+            <div class="rc">${it.rootCause}</div></div>`).join('')}
+        </div>`;
+      }).join('');
+      $$('.caseitem').forEach(it=>it.onclick=()=>{
+        const c=cases[+it.dataset.i];lastResult=c.res;
+        $$('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.nav==='investigate'));
+        $$('.page').forEach(p=>p.style.display=p.dataset.page==='investigate'?'block':'none');
+        $('#centerTitle').textContent='ANALYSIS WORKSPACE';
+        renderResults(c.res);renderSummary(c.res);gotoResults();
+      });
+    }
+
+    /* ---- datacentre DB ---- */
+    function renderDC(){
+      let rows='<table><tr><th>Region</th><th>Datacentre</th><th>Edge / SBC</th><th>Cluster</th></tr>';
+      Object.entries(NEXUS.DATACENTRES).forEach(([reg,d])=>{rows+=`<tr><td>${reg}</td><td><span class="pill b">${d.dc}</span></td><td style="font-family:var(--mono);font-size:11px">${d.edge.join(', ')}</td><td>${d.cluster}</td></tr>`;});
+      rows+='</table>';
+      $('#dcTable').innerHTML='<div class="sec"><h3>8x8 DATACENTRE / SBC MAP</h3><div class="c">'+rows+'</div></div>';
+      let p='<table><tr><th>Port</th><th>Protocol</th><th>Use</th></tr>';
+      NEXUS.REQUIRED_PORTS.forEach(x=>{p+=`<tr><td><span class="pill g">${x.port}</span></td><td>${x.proto}</td><td>${x.use}</td></tr>`;});
+      p+='</table>';$('#portTable').innerHTML=p;
+    }
+
+    /* ---- knowledge base ---- */
+    function renderKB(){
+      const kb=[
+        ['Packet loss location','Loss at hop 1-2 = customer LAN/Wi-Fi. Loss at hop 3 = CPE / ISP gateway. Loss beyond = ISP / backbone. Single-hop loss that does not persist downstream is usually ICMP de-prioritisation, not a real fault.'],
+        ['Country latency thresholds','UK→UK <50ms · intra-Europe <80ms · transatlantic <150ms · intercontinental <250ms. Always phrase findings against the regional expectation, never just "high".'],
+        ['VoIP quality targets','Jitter <30ms · packet loss <1% · MOS ≥4.0 good, ≥3.6 acceptable. RTP needs UDP 10000-30000 open both ways.'],
+        ['Required 8x8 ports','SIP signalling UDP/TCP 5060, TLS 5061, HTTPS 443, RTP media UDP 10000-30000. Disable SIP ALG on the firewall — it commonly breaks signalling.'],
+        ['Wrong datacentre','If traffic lands at the wrong DC for the region, suspect DNS, VPN, SD-WAN breakout or ISP routing. Verify DNS and WAN routing policy first.'],
+        ['ISP congestion signature','Loss + climbing latency starting at an ISP-named hop (e.g. virginmedia.net) = provider congestion. Escalate to ISP with the trace attached.']
+      ];
+      $('#kbView').innerHTML=kb.map(([h,p])=>`<div class="kbcard"><h4>✦ ${h}</h4><p>${p}</p></div>`).join('');
+    }
+
+    /* ---- toast ---- */
+    let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1600);}
+  })();
+  </script>
+</body>
+</html>
