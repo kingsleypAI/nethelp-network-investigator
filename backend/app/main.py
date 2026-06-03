@@ -1,4 +1,4 @@
-"""NEXUS Network Investigator — FastAPI application entrypoint."""
+"""NetHelp Network Investigator — FastAPI application entrypoint."""
 from __future__ import annotations
 
 from fastapi import FastAPI
@@ -11,7 +11,7 @@ from .database import init_db
 settings = get_settings()
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION,
-              description="AI-assisted, rules-based network diagnostics for VoIP / UCaaS support engineers.")
+              description="NetHelp — AI-assisted, rules-based network diagnostics for VoIP / UCaaS support engineers.")
 
 app.add_middleware(
     CORSMiddleware,

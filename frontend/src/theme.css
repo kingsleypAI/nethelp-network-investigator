@@ -244,3 +244,54 @@
   .etype.sm{color:var(--dim);border-color:var(--edge);background:#0d141d}
   .recur{font-family:var(--mono);font-size:10px;color:var(--amber);background:#1a1408;padding:6px 12px;border-bottom:1px solid var(--edge)}
   .group .caseitem{margin:8px 10px;border-radius:5px}
+
+/* ===== BOOT / LOADING SCREEN (industrial cold-start) ============ */
+#boot{
+  position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% 40%,#0e1722,#070b10 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  background-image:
+    radial-gradient(circle at 50% 40%,#0e1722,#070b10 70%),
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:auto,28px 28px,28px 28px;
+  transition:opacity .6s ease;overflow:hidden;
+}
+#boot.done{opacity:0;pointer-events:none}
+#boot::before{
+  content:"";position:absolute;left:0;right:0;height:160px;
+  background:linear-gradient(180deg,transparent,#39b6ff14,transparent);
+  animation:bootscan 2.4s linear infinite;
+}
+@keyframes bootscan{0%{top:-160px}100%{top:100%}}
+.boot-core{
+  width:96px;height:96px;border-radius:14px;display:grid;place-items:center;position:relative;
+  border:2px solid var(--amber);color:var(--amber);font-size:42px;
+  box-shadow:0 0 40px #ffb02e44,inset 0 0 22px #ffb02e22;background:#1a130244;
+  animation:corepulse 1.4s ease-in-out infinite;
+}
+@keyframes corepulse{0%,100%{box-shadow:0 0 30px #ffb02e33,inset 0 0 18px #ffb02e22}50%{box-shadow:0 0 55px #ffb02e77,inset 0 0 26px #ffb02e44}}
+.boot-core .gear{position:absolute;inset:-14px;border:2px dashed #ffb02e55;border-radius:50%;animation:spin 6s linear infinite}
+.boot-core .gear.r{inset:-26px;border-color:#34d17a44;animation:spin 9s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.boot-title{font-family:var(--mono);font-weight:800;letter-spacing:6px;font-size:30px;color:#fff;text-shadow:0 0 18px #ffb02e66}
+.boot-title span{color:var(--amber)}
+.boot-sub{font-family:var(--mono);font-size:10px;letter-spacing:4px;color:var(--faint);margin-top:-10px}
+.boot-barwrap{width:min(440px,80vw);margin-top:6px}
+.boot-bar{height:12px;background:#0b1118;border:1px solid var(--edge2);border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px #000}
+.boot-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff4d4d,#ffb02e,#34d17a);transition:width .25s;box-shadow:0 0 12px #ffb02e88}
+.boot-meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:6px}
+.boot-log{width:min(440px,80vw);height:104px;overflow:hidden;font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--dim)}
+.boot-log .ok{color:var(--green)} .boot-log .am{color:var(--amber)}
+.boot-log b{color:var(--txt);font-weight:400}
+.boot-foot{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--faint);margin-top:4px}
+
+/* ===== MADE BY KP corner stamp ================================== */
+.kp-badge{
+  position:fixed;right:12px;bottom:12px;z-index:50;
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--amber);
+  padding:5px 11px;border:1px solid var(--rivet);border-radius:5px;
+  background:linear-gradient(180deg,#16202d,#0e141d);
+  box-shadow:0 2px 10px #0008,inset 0 1px 0 #ffffff08;opacity:.8;user-select:none;
+}
+.kp-badge:before{content:"◈ ";color:var(--amber)}
+.kp-badge b{color:#fff;font-weight:700}

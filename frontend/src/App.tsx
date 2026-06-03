@@ -4,6 +4,7 @@ import CasesView from "./components/CasesView";
 import Console, { LogLine } from "./components/Console";
 import DatacentreView from "./components/DatacentreView";
 import KnowledgeBase from "./components/KnowledgeBase";
+import LoadingScreen from "./components/LoadingScreen";
 import NavPanel, { NavKey } from "./components/NavPanel";
 import SummaryPanel from "./components/SummaryPanel";
 import TopBar from "./components/TopBar";
@@ -37,7 +38,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    log("NEXUS diagnostic core initialising…", "head");
+    log("NetHelp diagnostic core initialising…", "head");
     Promise.all([api.regions(), api.samples(), api.config()])
       .then(([r, s, c]) => {
         setRegions(r);
@@ -53,6 +54,7 @@ export default function App() {
 
   return (
     <>
+      <LoadingScreen />
       <TopBar busy={busy} claudeEnabled={claudeEnabled} />
       <div className="shell">
         <NavPanel active={nav} onNav={setNav} />
@@ -77,6 +79,7 @@ export default function App() {
       </div>
 
       <div className={"toast" + (toastMsg ? " show" : "")}>{toastMsg}</div>
+      <div className="kp-badge">MADE BY <b>KP</b></div>
     </>
   );
 }

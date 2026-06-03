@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEXUS · Network Investigator</title>
+<title>NetHelp · Network Investigator</title>
 <style>
   /* ===== INDUSTRIAL NOC THEME ====================================== */
   :root{
@@ -251,11 +251,75 @@
   .etype.sm{color:var(--dim);border-color:var(--edge);background:#0d141d}
   .recur{font-family:var(--mono);font-size:10px;color:var(--amber);background:#1a1408;padding:6px 12px;border-bottom:1px solid var(--edge)}
   .group .caseitem{margin:8px 10px;border-radius:5px}
+
+  /* ===== BOOT / LOADING SCREEN (industrial cold-start) ============ */
+  #boot{
+    position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% 40%,#0e1722,#070b10 70%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background-image:
+      radial-gradient(circle at 50% 40%,#0e1722,#070b10 70%),
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:auto,28px 28px,28px 28px;
+    transition:opacity .6s ease;overflow:hidden;
+  }
+  #boot.done{opacity:0;pointer-events:none}
+  #boot::before{ /* scanline sweep */
+    content:"";position:absolute;left:0;right:0;height:160px;
+    background:linear-gradient(180deg,transparent,#39b6ff14,transparent);
+    animation:bootscan 2.4s linear infinite;
+  }
+  @keyframes bootscan{0%{top:-160px}100%{top:100%}}
+  .boot-core{
+    width:96px;height:96px;border-radius:14px;display:grid;place-items:center;position:relative;
+    border:2px solid var(--amber);color:var(--amber);font-size:42px;
+    box-shadow:0 0 40px #ffb02e44,inset 0 0 22px #ffb02e22;background:#1a130244;
+    animation:corepulse 1.4s ease-in-out infinite;
+  }
+  @keyframes corepulse{0%,100%{box-shadow:0 0 30px #ffb02e33,inset 0 0 18px #ffb02e22}50%{box-shadow:0 0 55px #ffb02e77,inset 0 0 26px #ffb02e44}}
+  .boot-core .gear{position:absolute;inset:-14px;border:2px dashed #ffb02e55;border-radius:50%;animation:spin 6s linear infinite}
+  .boot-core .gear.r{inset:-26px;border-color:#34d17a44;animation:spin 9s linear infinite reverse}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .boot-title{font-family:var(--mono);font-weight:800;letter-spacing:6px;font-size:30px;color:#fff;text-shadow:0 0 18px #ffb02e66}
+  .boot-title span{color:var(--amber)}
+  .boot-sub{font-family:var(--mono);font-size:10px;letter-spacing:4px;color:var(--faint);margin-top:-10px}
+  .boot-barwrap{width:min(440px,80vw);margin-top:6px}
+  .boot-bar{height:12px;background:#0b1118;border:1px solid var(--edge2);border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px #000}
+  .boot-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff4d4d,#ffb02e,#34d17a);transition:width .25s;box-shadow:0 0 12px #ffb02e88}
+  .boot-meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:6px}
+  .boot-log{width:min(440px,80vw);height:104px;overflow:hidden;font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--dim)}
+  .boot-log .ok{color:var(--green)} .boot-log .am{color:var(--amber)}
+  .boot-log b{color:var(--txt);font-weight:400}
+  .boot-foot{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--faint);margin-top:4px}
+
+  /* ===== MADE BY KP corner stamp ================================== */
+  .kp-badge{
+    position:fixed;right:12px;bottom:12px;z-index:50;
+    font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--amber);
+    padding:5px 11px;border:1px solid var(--rivet);border-radius:5px;
+    background:linear-gradient(180deg,#16202d,#0e141d);
+    box-shadow:0 2px 10px #0008,inset 0 1px 0 #ffffff08;opacity:.8;user-select:none;
+  }
+  .kp-badge:before{content:"◈ ";color:var(--amber)}
+  .kp-badge b{color:#fff;font-weight:700}
 </style>
 </head>
 <body>
+  <!-- ===== BOOT / LOADING SCREEN ===== -->
+  <div id="boot">
+    <div class="boot-core"><span class="gear"></span><span class="gear r"></span>◈</div>
+    <div class="boot-title"><span>Net</span>Help</div>
+    <div class="boot-sub">NETWORK INVESTIGATOR · DIAGNOSTIC CORE</div>
+    <div class="boot-barwrap">
+      <div class="boot-bar"><i id="bootFill"></i></div>
+      <div class="boot-meta"><span id="bootStatus">COLD START</span><span id="bootPct">0%</span></div>
+    </div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-foot">INDUSTRIAL NETWORK OPERATIONS CENTRE</div>
+  </div>
+
   <div class="topbar">
-    <div class="logo"><span class="mark">◈</span><span>NEXUS</span> <b>NETWORK INVESTIGATOR</b></div>
+    <div class="logo"><span class="mark">◈</span><span>NetHelp</span> <b>NETWORK INVESTIGATOR</b></div>
     <div class="sub">VoIP · UCaaS · CONTACT CENTRE DIAGNOSTICS</div>
     <div class="spacer"></div>
     <div class="stat"><span class="led" id="sysLed"></span> ENGINE ONLINE</div>
@@ -359,6 +423,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="kp-badge">MADE BY <b>KP</b></div>
 
   <script>
 /* ============================================================================
@@ -1075,7 +1140,7 @@
       const cur=document.createElement('span');cur.className='cur';row.querySelector('.m').appendChild(document.createTextNode(' '));row.querySelector('.m').appendChild(cur);
       cbody.scrollTop=cbody.scrollHeight;
     }
-    log('NEXUS diagnostic core initialised.','head');
+    log('NetHelp diagnostic core initialised.','head');
     log('Rules-based engine loaded · '+NEXUS.REGIONS.length+' regions · '+NEXUS.REQUIRED_PORTS.length+' port rules.','info');
     log('Standing by for evidence.','ok');
 
@@ -1419,6 +1484,44 @@ Region: United Kingdom`}
 
     /* ---- toast ---- */
     let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1600);}
+  })();
+  </script>
+
+  <script>
+  /* ================= BOOT SEQUENCE ================= */
+  (function(){
+    const fill=document.getElementById('bootFill'),pct=document.getElementById('bootPct'),
+          status=document.getElementById('bootStatus'),logEl=document.getElementById('bootLog'),
+          boot=document.getElementById('boot');
+    const steps=[
+      ['POWERING UP DIAGNOSTIC CORE','BOOT'],
+      ['MOUNTING DATACENTRE MAP · 14 REGIONS','LOAD'],
+      ['CALIBRATING LATENCY THRESHOLDS','CALIB'],
+      ['SPINNING UP PACKET-LOSS ANALYSERS','SPIN'],
+      ['ARMING FIREWALL / DNS / ISP DETECTORS','ARM'],
+      ['SYNCHRONISING SBC ENDPOINTS','SYNC'],
+      ['OPERATIONS CENTRE ONLINE','READY']
+    ];
+    let i=0;
+    const lines=[];
+    function render(){logEl.innerHTML=lines.slice(-5).join('');}
+    function tick(){
+      if(i<steps.length){
+        const [msg,tag]=steps[i];
+        const last=i===steps.length-1;
+        status.textContent=tag;
+        lines.push(`<div><span class="${last?'ok':'am'}">${last?'✓':'▸'}</span> <b>${msg}…</b></div>`);
+        render();
+        const p=Math.round(((i+1)/steps.length)*100);
+        fill.style.width=p+'%';pct.textContent=p+'%';
+        i++;
+        setTimeout(tick, last?520:240+Math.random()*160);
+      }else{
+        status.textContent='ONLINE';
+        setTimeout(()=>{boot.classList.add('done');setTimeout(()=>boot.remove(),650);},420);
+      }
+    }
+    setTimeout(tick,260);
   })();
   </script>
 </body>

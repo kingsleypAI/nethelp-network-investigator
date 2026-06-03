@@ -10,7 +10,7 @@ export default function TopBar({ busy, claudeEnabled }: { busy: boolean; claudeE
     <div className="topbar">
       <div className="logo">
         <span className="mark">◈</span>
-        <span>NEXUS</span> <b>NETWORK INVESTIGATOR</b>
+        <span>NetHelp</span> <b>NETWORK INVESTIGATOR</b>
       </div>
       <div className="sub">VoIP · UCaaS · CONTACT CENTRE DIAGNOSTICS</div>
       <div className="spacer" />

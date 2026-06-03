@@ -1,14 +1,16 @@
-# NEXUS Network Investigator
+# NetHelp Network Investigator
+
+> Made by KP
 
 An AI-assisted, **rules-based** network diagnostics platform for Technical Support Engineers supporting VoIP, UCaaS and Contact Centre environments (built around 8x8 connectivity requirements).
 
-Upload diagnostics — traceroutes, MTR, ping tests, 8x8 utility tests, PingPlotter exports, firewall logs — and NEXUS answers the only four questions that matter:
+Upload diagnostics — traceroutes, MTR, ping tests, 8x8 utility tests, PingPlotter exports, firewall logs — and NetHelp answers the only four questions that matter:
 
 > **What is wrong? · Why do we think this? · How severe is it? · What should the customer do next?**
 
 No 200-line reports. A root cause, the evidence, a ranked fix, customer + engineer + ticket text, and an escalation-readiness verdict — in seconds.
 
-> A zero-install single-file demo (`demo/NEXUS.html`) is also included — open it in a browser for a quick look without running the stack.
+> A zero-install single-file demo (`demo/NetHelp.html`) is also included — open it in a browser for a quick look without running the stack.
 
 ---
 

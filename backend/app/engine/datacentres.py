@@ -1,4 +1,4 @@
-"""Datacentre, geo, threshold and ISP-signature intelligence for NEXUS.
+"""Datacentre, geo, threshold and ISP-signature intelligence for NetHelp.
 
 Representative values for a support-engineering platform. Centralised here so
 the rest of the engine (and the API /meta endpoints) share one source of truth.

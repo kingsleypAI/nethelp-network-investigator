@@ -6,7 +6,7 @@ from functools import lru_cache
 
 
 class Settings:
-    APP_NAME: str = "NEXUS Network Investigator"
+    APP_NAME: str = "NetHelp Network Investigator"
     VERSION: str = "1.0.0"
     # Postgres in production; falls back to local SQLite so the API runs with zero setup.
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./nexus.db")
