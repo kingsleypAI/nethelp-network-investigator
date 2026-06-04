@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Analysis } from "../types";
 
 const HMAP: Record<string, [string, string, string]> = {
@@ -6,6 +6,17 @@ const HMAP: Record<string, [string, string, string]> = {
   degraded: ["🟡", "h-degraded", "DEGRADED"],
   critical: ["🔴", "h-critical", "CRITICAL"],
 };
+
+function guessType(text: string, name = "") {
+  name = name.toLowerCase();
+  if (name.includes("pingplotter") || /pingplotter/i.test(text)) return "PINGPLOTTER";
+  if (/loss%\s+snt|wrst|stdev|\bmtr\b/i.test(text)) return "MTR";
+  if (/^\s*target\s*:/im.test(text) && /loss\s*%/i.test(text)) return "PINGPLOTTER";
+  if (/utility test|sbc|reachability/i.test(text)) return "8x8 UTIL";
+  if (/traceroute|\bhop\b|\bms\b/i.test(text)) return "TRACE";
+  if (/ping|packets/i.test(text)) return "PING";
+  return "LOG";
+}
 
 function vClass(v: string | number) {
   const s = String(v);
@@ -19,6 +30,10 @@ function copy(text: string, toast: (m: string) => void) {
 }
 
 export default function ResultsView({ r, toast }: { r: Analysis | null; toast: (m: string) => void }) {
+  const [showRaw, setShowRaw] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
+  useEffect(() => { setShowRaw(false); setReviewed(false); }, [r]);
+
   if (!r) {
     return (
       <div className="empty"><div><div className="big">◳</div>NO INVESTIGATION RUN YET<br />
@@ -26,6 +41,10 @@ export default function ResultsView({ r, toast }: { r: Analysis | null; toast: (
     );
   }
   const h = HMAP[r.health];
+  const openRaw = () => {
+    setShowRaw(true);
+    setTimeout(() => document.getElementById("rawSec")?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+  };
   const dcStatus = r.geo.actualDc && r.geo.actualDc !== r.geo.expectedDc ? "WARNING" : "PASS";
   const ticket = r.ticketNotes.map((n) => "• " + n).join("\n");
 
@@ -41,7 +60,19 @@ export default function ResultsView({ r, toast }: { r: Analysis | null; toast: (
           </div>
           <p>{r.rootCause}</p>
         </div>
+        {reviewed && <span className="reviewed-stamp">✓ REVIEWED BY ENGINEER</span>}
       </div>
+
+      {r.reviewFlag?.needed && (
+        <div className="review-callout">
+          <div className="rc-head">⚠ MANUAL REVIEW RECOMMENDED</div>
+          <div className="rc-body">
+            The engine is not fully certain. Please open the raw evidence and confirm before acting:
+            <ul>{r.reviewFlag.reasons.map((x) => <li key={x}>{x}</li>)}</ul>
+          </div>
+          <button className="btn" onClick={openRaw}>🔍 REVIEW RAW EVIDENCE</button>
+        </div>
+      )}
 
       <Sec title="◈ ROOT CAUSE"><div className="rootcause">{r.rootCause}</div></Sec>
 
@@ -121,6 +152,32 @@ export default function ResultsView({ r, toast }: { r: Analysis | null; toast: (
         <pre className="out">{ticket}</pre>
         <pre className="out">{r.escalationSummary}</pre>
       </Sec>
+
+      <div className="sec" id="rawSec">
+        <h3 style={{ color: "var(--blue)" }}>🔍 RAW EVIDENCE · MANUAL REVIEW</h3>
+        <div className="c">
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <span className="lbl">
+              Confirm the engine read the data correctly ({r.rawInputs.length} source{r.rawInputs.length === 1 ? "" : "s"})
+            </span>
+            <button className="btn sm" onClick={() => setShowRaw((s) => !s)}>SHOW / HIDE</button>
+          </div>
+          {showRaw && (
+            <div style={{ marginTop: 10 }}>
+              {r.rawInputs.length ? r.rawInputs.map((f) => (
+                <div className="raw-item" key={f.name}>
+                  <div className="raw-name">▤ {f.name} <span className="tag">{guessType(f.text, f.name)}</span></div>
+                  <pre className="out" style={{ maxHeight: 200 }}>{f.text || "<empty>"}</pre>
+                </div>
+              )) : <div className="lbl">No raw text captured for this case.</div>}
+              <button className="btn" style={{ marginTop: 10 }} disabled={reviewed}
+                onClick={() => { setReviewed(true); toast("Marked as manually reviewed"); }}>
+                {reviewed ? "✓ REVIEWED" : "✓ MARK AS MANUALLY REVIEWED"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

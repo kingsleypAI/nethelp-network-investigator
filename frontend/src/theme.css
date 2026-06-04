@@ -307,3 +307,14 @@
 .sig1{animation:sig 1.4s infinite}.sig2{animation:sig 1.4s infinite .22s}.sig3{animation:sig 1.4s infinite .44s}
 .tip{animation:sig 1s infinite}
 .b1{animation:sig 1.1s infinite}.b2{animation:sig 1.1s infinite .18s}.b3{animation:sig 1.1s infinite .36s}
+
+/* ---- manual review callout + raw evidence ---- */
+.review-callout{border:1px solid #7a5e13;background:linear-gradient(180deg,#241d08,#1a1408);border-radius:7px;padding:12px 14px;margin:0 0 12px}
+.review-callout .rc-head{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--amber);font-weight:700}
+.review-callout .rc-body{font-size:12.5px;color:var(--txt);margin:6px 0 10px;line-height:1.5}
+.review-callout ul{margin:6px 0 0;padding-left:18px}
+.review-callout li{margin:3px 0;color:#ffd27a}
+.review-callout .btn{border-color:#7a5e13;color:var(--amber)}
+.reviewed-stamp{align-self:flex-start;margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--green);border:1px solid #1c6b43;background:var(--green2);padding:4px 9px;border-radius:5px;white-space:nowrap}
+.raw-item{margin-bottom:10px}
+.raw-name{font-family:var(--mono);font-size:11px;color:var(--txt);margin-bottom:4px;display:flex;align-items:center;gap:8px}

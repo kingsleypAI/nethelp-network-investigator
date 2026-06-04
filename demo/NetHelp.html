@@ -315,6 +315,19 @@
   }
   .kp-badge:before{content:"◈ ";color:var(--amber)}
   .kp-badge b{color:#fff;font-weight:700}
+
+  /* ===== manual review callout + raw evidence ===== */
+  .review-callout{border:1px solid #7a5e13;background:linear-gradient(180deg,#241d08,#1a1408);border-radius:7px;padding:12px 14px;margin:0 0 12px}
+  .review-callout .rc-head{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--amber);font-weight:700}
+  .review-callout .rc-body{font-size:12.5px;color:var(--txt);margin:6px 0 10px;line-height:1.5}
+  .review-callout ul{margin:6px 0 0;padding-left:18px}
+  .review-callout li{margin:3px 0;color:#ffd27a}
+  .review-callout .btn{border-color:#7a5e13;color:var(--amber)}
+  .reviewed-stamp{align-self:flex-start;margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:1px;
+    color:var(--green);border:1px solid #1c6b43;background:var(--green2);padding:4px 9px;border-radius:5px;white-space:nowrap}
+  .raw-item{margin-bottom:10px}
+  .raw-name{font-family:var(--mono);font-size:11px;color:var(--txt);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  #rawSec h3{color:var(--blue)}
 </style>
 </head>
 <body>
@@ -802,6 +815,9 @@
     // ---- ISP signature (only > 80%) ----
     const isp = detectIspSignature(ev, geo, findings);
 
+    // ---- Uncertainty / manual-review flag ----
+    const reviewFlag = computeReviewFlag({ inputs, ev, geo, findings, health, confidence });
+
     return {
       health, rootCause, confidence,
       geo, site: site.id, siteSource: site.source, findings,
@@ -810,8 +826,42 @@
       affectedServices: deriveAffected(findings),
       customerText, engineerText, ticketNotes, escalationSummary,
       escalation,
+      reviewFlag,
+      rawInputs: (inputs || []).map(i => ({ name: i.name || "input", text: i.text || "" })),
       detected: ev
     };
+  }
+
+  /* ----- uncertainty: when should a human double-check? ----- */
+  function computeReviewFlag(ctx) {
+    const { inputs, ev, geo, findings, health, confidence } = ctx;
+    const reasons = [];
+
+    if (health !== "healthy" && confidence < 75)
+      reasons.push("Confidence is below 75% — the automated reading is not certain.");
+
+    if (!geo || !geo.region)
+      reasons.push("Region could not be determined automatically — set it manually and re-run.");
+    else if (geo.method !== "Agent Override" && geo.confidence && geo.confidence < 70)
+      reasons.push("Region was detected with low confidence — verify (VPN / SD-WAN / Citrix can mislead this).");
+
+    // competing root causes of similar likelihood
+    if (findings.length >= 2) {
+      const a = findings[0], b = findings[1];
+      if (a.severity === b.severity && Math.abs(a.confidence - b.confidence) <= 8)
+        reasons.push("Two possible root causes scored similarly — confirm which is primary.");
+    }
+
+    // a non-healthy verdict resting on very little evidence
+    const evidenceCount = ev.traceroutes.length + ev.pings.length + ev.utilities.length;
+    if (health !== "healthy" && evidenceCount <= 1)
+      reasons.push("Verdict is based on a single piece of evidence — attach a traceroute/PingPlotter to confirm.");
+
+    // wrong-datacentre is inherently ambiguous (DNS vs VPN vs routing)
+    if (findings.some(f => f.kind === "datacentre"))
+      reasons.push("Datacentre mismatch can have several causes (DNS / VPN / SD-WAN) — confirm against the customer's setup.");
+
+    return { needed: reasons.length > 0, reasons };
   }
 
   /* ----- geo resolution ----- */
@@ -1368,7 +1418,19 @@ Region: United Kingdom`}
       let html=`<div class="health-banner ${h[1]}"><span class="scan"></span><span class="hicon">${h[0]}</span>
         <div><h2>NETWORK ${h[2]}</h2>
         <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;opacity:.85;margin:2px 0 4px">SITE: ${esc(r.site||'Unidentified')}${r.siteSource?` · ${r.siteSource}`:''}</div>
-        <p>${r.rootCause}</p></div></div>`;
+        <p>${r.rootCause}</p></div>
+        <span class="reviewed-stamp" id="reviewedStamp" style="display:none">✓ REVIEWED BY ENGINEER</span></div>`;
+
+      // manual-review recommended banner
+      if(r.reviewFlag&&r.reviewFlag.needed){
+        html+=`<div class="review-callout">
+          <div class="rc-head">⚠ MANUAL REVIEW RECOMMENDED</div>
+          <div class="rc-body">The engine is not fully certain. Please open the raw evidence and confirm before acting:
+            <ul>${r.reviewFlag.reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+          </div>
+          <button class="btn" id="jumpRaw">🔍 REVIEW RAW EVIDENCE</button>
+        </div>`;
+      }
 
       // root cause
       html+=`<div class="sec"><h3>◈ ROOT CAUSE</h3><div class="c"><div class="rootcause">${r.rootCause}</div></div></div>`;
@@ -1428,10 +1490,30 @@ Region: United Kingdom`}
         <pre class="out" id="copyEsc">${esc(r.escalationSummary)}</pre>
       </div></div>`;
 
+      // raw evidence review (collapsible) + manual-confirm
+      const raw=r.rawInputs||[];
+      html+=`<div class="sec" id="rawSec"><h3>🔍 RAW EVIDENCE · MANUAL REVIEW</h3><div class="c">
+        <div class="row" style="justify-content:space-between">
+          <span class="lbl">Confirm the engine read the data correctly (${raw.length} source${raw.length===1?'':'s'})</span>
+          <button class="btn sm" id="toggleRaw">SHOW / HIDE</button>
+        </div>
+        <div id="rawBody" style="display:none;margin-top:10px">
+          ${raw.length?raw.map(f=>`<div class="raw-item"><div class="raw-name">▤ ${esc(f.name)} <span class="tag">${guessType(f.text,f.name)}</span></div><pre class="out" style="max-height:200px">${esc(f.text)||'<empty>'}</pre></div>`).join(''):'<div class="lbl">No raw text captured for this case.</div>'}
+          <button class="btn" id="markReviewed" style="margin-top:10px">✓ MARK AS MANUALLY REVIEWED</button>
+        </div>
+      </div></div>`;
+
       $('#results').innerHTML=html;
 
       const copyMap={cust:r.customerText,ticket:r.ticketNotes.map(n=>'• '+n).join('\n'),esc:r.escalationSummary};
       $$('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(copyMap[b.dataset.copy]).then(()=>toast('Copied to clipboard')); });
+
+      // raw review wiring
+      const rawBody=$('#rawBody');
+      const showRaw=()=>{rawBody.style.display='block';$('#rawSec').scrollIntoView({behavior:'smooth',block:'start'});};
+      const tog=$('#toggleRaw'); if(tog) tog.onclick=()=>{rawBody.style.display=rawBody.style.display==='none'?'block':'none';};
+      const jr=$('#jumpRaw'); if(jr) jr.onclick=showRaw;
+      const mr=$('#markReviewed'); if(mr) mr.onclick=()=>{const s=$('#reviewedStamp');if(s)s.style.display='inline-block';mr.textContent='✓ REVIEWED';mr.disabled=true;toast('Marked as manually reviewed');log('Engineer manually reviewed raw evidence for '+(r.site||'case')+'.','ok');};
     }
     function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 

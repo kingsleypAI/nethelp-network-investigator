@@ -144,6 +144,27 @@ def _escalation_summary(top: Optional[dict], ev: Evidence, geo: dict) -> str:
     return "\n".join(lines)
 
 
+def _review_flag(inputs, ev: Evidence, geo: dict, findings: list, health: str, confidence: int) -> dict:
+    """When should a human double-check the automated verdict?"""
+    reasons = []
+    if health != "healthy" and confidence < 75:
+        reasons.append("Confidence is below 75% — the automated reading is not certain.")
+    if not geo or not geo.get("region"):
+        reasons.append("Region could not be determined automatically — set it manually and re-run.")
+    elif geo.get("method") != "Agent Override" and geo.get("confidence") and geo["confidence"] < 70:
+        reasons.append("Region was detected with low confidence — verify (VPN / SD-WAN / Citrix can mislead this).")
+    if len(findings) >= 2:
+        a, b = findings[0], findings[1]
+        if a["severity"] == b["severity"] and abs(a["confidence"] - b["confidence"]) <= 8:
+            reasons.append("Two possible root causes scored similarly — confirm which is primary.")
+    evidence_count = len(ev.traceroutes) + len(ev.pings) + len(ev.utilities)
+    if health != "healthy" and evidence_count <= 1:
+        reasons.append("Verdict is based on a single piece of evidence — attach a traceroute/PingPlotter to confirm.")
+    if any(f["kind"] == "datacentre" for f in findings):
+        reasons.append("Datacentre mismatch can have several causes (DNS / VPN / SD-WAN) — confirm against the customer's setup.")
+    return {"needed": len(reasons) > 0, "reasons": reasons}
+
+
 def _escalation_readiness(ev: Evidence, geo: dict, findings: list) -> dict:
     checks = {
         "Utility Test Present": len(ev.utilities) > 0,
@@ -199,6 +220,8 @@ def analyse(inputs: list[dict], region_override: Optional[str] = None,
         "ticketNotes": _ticket_notes(health, top, geo, findings),
         "escalationSummary": _escalation_summary(top, ev, geo),
         "escalation": _escalation_readiness(ev, geo, findings),
+        "reviewFlag": _review_flag(inputs, ev, geo, findings, health, confidence),
+        "rawInputs": [{"name": i.get("name", "input"), "text": i.get("text", "")} for i in (inputs or [])],
         "detected": {
             "sources": ev.sources,
             "publicIps": ev.public_ips,

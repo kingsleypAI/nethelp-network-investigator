@@ -80,6 +80,18 @@ def test_lan_loss():
     assert "within the customer LAN" in r["rootCause"]
 
 
+def test_review_flag_healthy_not_needed():
+    r = analyse(HEALTHY)
+    assert r["reviewFlag"]["needed"] is False
+    assert [i["name"] for i in r["rawInputs"]] == ["mtr.txt", "u.json"]
+
+
+def test_review_flag_thin_evidence_needed():
+    r = analyse([{"name": "p.txt", "text": "pinging 8.8.8.8\n4% packet loss\nAverage = 120ms"}])
+    assert r["reviewFlag"]["needed"] is True
+    assert any("single piece of evidence" in x for x in r["reviewFlag"]["reasons"])
+
+
 def test_latency_is_region_aware():
     r = analyse([{"name": "p.txt", "text": "pinging lon.8x8.com\n0% packet loss\nAverage = 142ms"}],
                 region_override="United Kingdom")

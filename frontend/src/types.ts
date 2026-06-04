@@ -43,6 +43,8 @@ export interface Analysis {
   ticketNotes: string[];
   escalationSummary: string;
   escalation: Escalation;
+  reviewFlag: { needed: boolean; reasons: string[] };
+  rawInputs: { name: string; text: string }[];
   enrichedBy?: string;
 }
 
